@@ -1,0 +1,142 @@
+/* style.css — Barcode Battler 2 Simulator (HTML5 骨組み)
+   配置は元 MXML(1544×795, layout=absolute) の実測値を反映。
+   design §1.1: mx:Application → 固定サイズ DOM / mx:Image → img / ImageButtonSprite → button
+   scale は CSS transform: scale() で再現(design §1.1 対応表)。*/
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: #333; font-family: sans-serif; }
+
+/* ===== viewport と固定ステージ(design §1.1: mx:Application→固定DOM) =====
+   #bb2-stage は 1544×795 固定。JS が fit scale を transform に適用し viewport 中央へ置く。
+   PC / スマートフォンどちらでも transform で縮小してレイアウトを壊さない。 */
+#viewport { position: absolute; inset: 0; overflow: hidden; background: #222; }
+#bb2-stage {
+  position: absolute; top: 0; left: 0;
+  width: 1544px; height: 795px;
+  background: #fff;
+  transform-origin: 0 0;
+}
+
+/* ===== 筐体(mx:Image id="box" x=0 y=0) ===== */
+#cabinet { position: absolute; left: 0; top: 0; width: 950px; height: 795px; }
+#bb2body { position: absolute; left: 0; top: 0; }
+
+/* ===== ディスプレイ(mx:VBox id="bb2display" @ box+372,160 300×200) ===== */
+#bb2display {
+  position: absolute; left: 372px; top: 160px;
+  width: 300px; height: 200px;
+  background: #fff url("../assets/img/bb2back.jpg") no-repeat;
+  overflow: hidden;
+}
+#bb2display .label { position: absolute; }
+#battle_label      { left: 10px;  top: 5px;  }
+#card_input_label  { left: 10px;  top: 25px; }
+#escape_label      { left: 110px; top: 3px;  }
+#power_label       { left: 233px; top: 5px;  }
+#critical_label    { left: 102px; top: 21px; }
+#miss_label        { left: 233px; top: 25px; }
+#magician_1p_label { left: 5px;   top: 43px; }
+#warrior_1p_label  { left: 35px;  top: 43px; }
+#key_label         { left: 65px;  top: 40px; }
+#item_label        { left: 90px;  top: 50px; }
+#infomation_label  { left: 210px; top: 43px; }
+#warrior_2p_label { left: 240px; top: 43px; }
+#magician_2p_label { left: 267px; top: 43px; }
+#hp_label     { left: 125px; top: 73px;  }
+#damage_label { left: 125px; top: 93px;  }
+#st_label     { left: 125px; top: 119px; }
+#mp_label     { left: 125px; top: 137px; }
+#df_label     { left: 125px; top: 159px; }
+#pp_label     { left: 125px; top: 180px; }
+
+/* TextInputSprite 相当(design §1.1: bb2digits PNG の 7 セグ合成 — js/textdisplay.js が 25px×40px の <img> 5 列を生成・代入。2026-11-04 作業6 工程2) */
+.digit {
+  position: absolute; height: 40px;
+  display: flex; align-items: flex-start; white-space: nowrap;
+}
+.digit img.bb2-cell { display: block; flex: 0 0 25px; width: 25px; height: 40px; }
+/* 座標・declared width は MXML 実測値(text="00000" initial 相当の静止内容は index.html の div 側) */
+#hp_1p { left: 1px;   top: 73px;  width: 90px;  }
+#st_1p { left: 1px;   top: 117px; width: 90px;  }
+#df_1p { left: 1px;   top: 161px; width: 90px;  }
+#hp_2p { left: 174px; top: 73px;  width: 100px; }
+#st_2p { left: 174px; top: 117px; width: 100px; }
+#df_2p { left: 174px; top: 161px; width: 100px; }
+#bb2-stage[data-state="-1"] .digit { opacity: 0; }
+
+/* ===== ImageButtonSprite 相当(design §1.1: <button>+pointerdown/:active+.selected) ===== */
+.bb2-btn { position: absolute; border: 0; padding: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
+.bb2-btn img { display: block; }
+.bb2-btn:active, .bb2-btn.selected { filter: brightness(0.65); }
+#l_power       { left: 56px;  top: 190px; }
+#l_battle      { left: 54px;  top: 323px; }
+#on_off        { left: 308px; top: 566px; }
+#select_button { left: 468px; top: 566px; }
+#set_button    { left: 635px; top: 566px; }
+#r_power       { left: 890px; top: 175px; }
+#r_battle      { left: 892px; top: 308px; }
+
+/* ライト(light1〜5, change_disabled=真の模倣: クリック不可な表示専用) */
+.bb2-light { position: absolute; pointer-events: none; }
+.bb2-light img { display: block; opacity: 0.3; }
+.bb2-light.lit img { opacity: 1; filter: drop-shadow(0 0 8px #f33); }
+#light1 { left: 328px; top: 445px; }
+#light2 { left: 419px; top: 445px; }
+#light3 { left: 507px; top: 445px; }
+#light4 { left: 594px; top: 445px; }
+#light5 { left: 682px; top: 444px; }
+
+/* サウンド表示(sound_on/sound_off 重ね置き) ミュート状態で CSS 切替 */
+#sound_indicator { position: absolute; left: 50px; top: 650px; cursor: pointer; }
+#sound_indicator img { position: absolute; left: 0; top: 0; }
+#bb2-stage[data-mute="false"] #sound_off { display: none; }
+#bb2-stage[data-mute="true"]  #sound_on  { display: none; }
+
+/* ===== ツールバー(mx:HBox @ box+268,750) ===== */
+#toolbar { position: absolute; left: 268px; top: 750px; display: flex; align-items: center; gap: 8px; }
+#card_in { font-size: 20px; width: 260px; padding: 4px 6px; }
+#toolbar button { font-size: 20px; padding: 6px 12px; touch-action: manipulation; }
+#toolbar .vrule { width: 50px; height: 24px; border: 0; border-left: 1px solid #999; }
+
+/* ===== バーコードリーダ面板(mx:VBox id="camera_reader" @ box+356,95) ===== */
+#camera_reader {
+  position: absolute; left: 356px; top: 95px; width: 340px;
+  background: rgba(17,17,17,0.92); color: #fff; border: 1px solid #fff;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px;
+}
+#camera_reader[hidden] { display: none; }
+.reader-title { background: #111; width: 200px; text-align: center; padding: 2px 0; }
+.reader-display-box {
+  position: relative; width: 320px; height: 240px; border: 1px solid #fff; background: #000; overflow: hidden;
+}
+#video_display, #reader_canvas {
+  position: absolute; left: 0; top: 0; width: 320px; height: 240px; object-fit: contain;
+}
+.reader-controls { display: flex; align-items: center; justify-content: flex-end; gap: 6px; width: 100%; }
+.reader-controls button { font-size: 12px; }
+.reader-status { font-size: 11px; color: #ffcc66; min-height: 16px; text-align: center; }
+
+/* ===== カード一覧面板(mx:DataGrid ×2 @ box+1044・Phase 7-2 で XML 接続済) ===== */
+#card_browser { position: absolute; left: 1044px; top: 0; width: 500px; color: #000; }
+#card_browser table {
+  display: block; width: 500px; overflow-y: auto;
+  border-collapse: collapse; background: #fff; margin-bottom: 20px; border: 1px solid #999;
+}
+#card_browser thead, #card_browser tbody { display: block; width: 100%; }
+#card_browser tr { display: table; width: 100%; table-layout: fixed; }
+#card_list_datagrid { height: 200px; }
+#card_name_datagrid { height: 300px; }
+#card_browser th { text-align: left; border-bottom: 1px solid #999; padding: 2px 6px; background: #eee; position: sticky; top: 0; }
+#card_browser td { border-bottom: 1px solid #ccc; padding: 3px 6px; cursor: pointer; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#card_browser tbody tr:hover td { background: #e6f2ff; }
+#card_browser tbody tr.selected td { background: #7fceff; font-weight: bold; }
+#card_image { width: 500px; height: 200px; object-fit: contain; background: #fff; cursor: pointer; }
+#card_image[src=""] { visibility: hidden; }
+
+/* ===== 骨組み専用開発情報バー(移植要素ではない) ===== */
+#dev_note {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: #000; color: #3f3; font: 12px/1.5 monospace;
+  padding: 4px 8px; display: flex; gap: 18px; flex-wrap: wrap;
+}

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barcode Battler 2 Simulator (HTML5 skeleton)</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<!--
+  BarcodeBattler2-Simulator-html — 作業4 骨組み(ロードマップ Phase 0 相当)
+  配置座標は BarcodeBattler2-Simulator-master/src/BarcodeBattler2Simulator.mxml の実測値を反映。
+  元 AS プロジェクト資産は参照のみ・無変更。ゲームロジック・バーコード読み取りは未移植(骨組みのみ)。
+-->
+<body>
+
+<!-- 画面全体: 固定 1544×795(#bb2-stage) を JS の fit スケールで viewport に収める -->
+<div id="viewport">
+  <div id="bb2-stage" data-state="-1">
+
+    <!-- ===== 筐体(mx:Image id="box" / bb2body.png) ===== -->
+    <div id="cabinet">
+      <img id="bb2body" src="assets/bb2graphics/bb2body.png" alt="BB2 筐体">
+
+      <!-- ディスプレイ(mx:VBox id="bb2display" 300×200 @ box+372,160) -->
+      <div id="bb2display">
+        <!-- 状態ラベル(MXML の static な mx:Image 群。骨組みでは常時表示) -->
+        <img class="label" id="battle_label"     src="assets/img/battle.png"     alt="">
+        <img class="label" id="card_input_label" src="assets/img/card_input.png" alt="">
+        <img class="label" id="escape_label"     src="assets/img/escape.png"     alt="">
+        <img class="label" id="power_label"      src="assets/img/power.png"      alt="">
+        <img class="label" id="critical_label"   src="assets/img/critical.png"   alt="">
+        <img class="label" id="miss_label"       src="assets/img/miss.png"       alt="">
+        <img class="label" id="magician_1p_label" src="assets/img/magician.png"  alt="">
+        <img class="label" id="warrior_1p_label"  src="assets/img/warrior.png"   alt="">
+        <img class="label" id="key_label"        src="assets/img/key.png"        alt="">
+        <img class="label" id="item_label"       src="assets/img/item.png"       alt="">
+        <img class="label" id="infomation_label" src="assets/img/infomation.png" alt="">
+        <img class="label" id="warrior_2p_label" src="assets/img/warrior.png"    alt="">
+        <img class="label" id="magician_2p_label" src="assets/img/magician.png"  alt="">
+        <img class="label" id="hp_label"      src="assets/img/hp.png"      alt="">
+        <img class="label" id="damage_label"  src="assets/img/damage.png"  alt="">
+        <img class="label" id="st_label"      src="assets/img/st.png"      alt="">
+        <img class="label" id="mp_label"      src="assets/img/mp.png"      alt="">
+        <img class="label" id="df_label"      src="assets/img/df.png"      alt="">
+        <img class="label" id="pp_label"      src="assets/img/pp.png"      alt="">
+
+        <!-- TextInputSprite 相当(7セグ合成は js/textdisplay.js で移植済み: bb2digits PNG 25×40×5列合成・2026-11-04 作業6 工程2) -->
+        <div class="digit" id="hp_1p">00000</div>
+        <div class="digit" id="st_1p">00000</div>
+        <div class="digit" id="df_1p">00000</div>
+        <div class="digit" id="hp_2p">00000</div>
+        <div class="digit" id="st_2p">00000</div>
+        <div class="digit" id="df_2p">00000</div>
+      </div>
+
+      <!-- 左右スイッチ・ライト ImageButtonSprite 相当 -->
+      <button class="bb2-btn" id="l_power"  type="button"><img src="assets/bb2graphics/l_power.png"  alt="L POWER"></button>
+      <button class="bb2-btn" id="l_battle" type="button"><img src="assets/bb2graphics/l_battle.png" alt="L BATTLE"></button>
+      <div class="bb2-light" id="light1"><img src="assets/bb2graphics/light.png" alt="light1"></div>
+      <div class="bb2-light" id="light2"><img src="assets/bb2graphics/light.png" alt="light2"></div>
+      <div class="bb2-light" id="light3"><img src="assets/bb2graphics/light.png" alt="light3"></div>
+      <div class="bb2-light" id="light4"><img src="assets/bb2graphics/light.png" alt="light4"></div>
+      <div class="bb2-light" id="light5"><img src="assets/bb2graphics/light.png" alt="light5"></div>
+
+      <button class="bb2-btn" id="on_off"        type="button"><img src="assets/bb2graphics/on.png"    alt="ON/OFF"></button>
+      <button class="bb2-btn" id="select_button" type="button"><img src="assets/bb2graphics/select.png" alt="SELECT"></button>
+      <button class="bb2-btn" id="set_button"    type="button"><img src="assets/bb2graphics/set.png"    alt="SET"></button>
+      <button class="bb2-btn" id="r_power"       type="button"><img src="assets/bb2graphics/r_power.png" alt="R POWER"></button>
+      <button class="bb2-btn" id="r_battle"      type="button"><img src="assets/bb2graphics/r_power.png" alt="R BATTLE"><!-- MXML 上 r_battle も r_power.png を使用(実測通り) --></button>
+
+      <!-- サウンド表示(mx:Image sound_on/sound_off 重ね置き) ミュート状態で切替 -->
+      <div id="sound_indicator">
+        <img id="sound_on"  src="assets/bb2graphics/sound_on.png"  alt="sound on">
+        <img id="sound_off" src="assets/bb2graphics/sound_off.png" alt="sound off">
+      </div>
+    </div>
+
+    <!-- ===== 下部ツールバー(mx:HBox @ box+268,750) ===== -->
+    <div id="toolbar">
+      <input id="card_in" type="text" inputmode="numeric" maxlength="13" value="2997971385282" disabled>
+      <button id="card_in_button"         type="button">CARD IN</button>
+      <button id="init_card_reader_button" type="button">CAMERA_IN</button>
+      <hr class="vrule">
+      <button id="change_scale_button"    type="button">CHANGE_SCALE</button>
+    </div>
+
+    <!-- ===== バーコードリーダ面板(mx:VBox id="camera_reader" @ box+356,95) =====
+         ActionScript barcode_reader.as / barcode2.as:125 完全移植(Phase 7-3: 画像選択・Webカメラ・EAN認識) -->
+    <div id="camera_reader" hidden>
+      <div class="reader-title">BARCODE IMAGE READER SYSTEM</div>
+      <div class="reader-display-box">
+        <video id="video_display" width="320" height="240" muted playsinline></video>
+        <canvas id="reader_canvas" width="320" height="240"></canvas>
+      </div>
+      <div class="reader-controls">
+        <label><input type="checkbox" id="auto_input"> Immediately</label>
+        <button id="select_image_button" type="button">Image Select</button>
+        <button id="get_camera_button"   type="button">Camera Input</button>
+        <input type="file" id="image_file_input" accept="image/*" style="display:none">
+      </div>
+      <div id="reader_status" class="reader-status"></div>
+    </div>
+
+    <!-- ===== カード一覧面板(mx:DataGrid ×2 @ box+1044・js/cards.js で XML 22件・表裏画像・バーコード入力接続済) ===== -->
+    <div id="card_browser">
+      <table id="card_list_datagrid"><thead><tr><th>name</th></tr></thead><tbody></tbody></table>
+      <table id="card_name_datagrid"><thead><tr><th>name</th></tr></thead><tbody></tbody></table>
+      <img id="card_image" src="" alt="">
+    </div>
+
+  </div>
+</div>
+
+<!-- 骨組み専用のもともと対応物ない開発情報バー(移植要素ではない) -->
+<div id="dev_note">
+  <span id="screen_note">bb2_state: -1(電源OFF)</span>
+  <span id="status_note"></span>
+</div>
+
+<script src="js/state.js"></script>
+<script src="js/store.js"></script>
+<script src="js/decoder.js"></script>
+<script src="js/textdisplay.js"></script>
+<script src="js/nes.js"></script>
+<script src="js/barcode_world.js"></script>
+<script src="js/fighting_data.js"></script>
+<script src="js/fighting_calc.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/reader.js"></script>
+<script src="js/view.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
