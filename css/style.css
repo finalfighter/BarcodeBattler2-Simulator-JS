@@ -8,19 +8,19 @@ html, body { height: 100%; margin: 0; }
 body { background: #333; font-family: sans-serif; }
 
 /* ===== viewport と固定ステージ(design §1.1: mx:Application→固定DOM) =====
-   #bb2-stage は 1544×795 固定。JS が fit scale を transform に適用し viewport 中央へ置く。
+   #bb2-stage はキャビネット・操作系を収める 1000×795 固定。JS が fit scale を transform に適用し viewport 中央へ置く。
    PC / スマートフォンどちらでも transform で縮小してレイアウトを壊さない。 */
 #viewport { position: absolute; inset: 0; overflow: hidden; background: #222; }
 #bb2-stage {
   position: absolute; top: 0; left: 0;
-  width: 1544px; height: 795px;
+  width: 1044px; height: 795px;
   background: #fff;
   transform-origin: 0 0;
 }
 
-/* ===== 筐体(mx:Image id="box" x=0 y=0) ===== */
-#cabinet { position: absolute; left: 0; top: 0; width: 950px; height: 795px; }
-#bb2body { position: absolute; left: 0; top: 0; }
+/* ===== 筐体(mx:Image id="box" x=0 y=0: bb2body 実測 1044×783) ===== */
+#cabinet { position: absolute; left: 0; top: 0; width: 1044px; height: 795px; }
+#bb2body { position: absolute; left: 0; top: 0; width: 1044px; height: 783px; display: block; }
 
 /* ===== ディスプレイ(mx:VBox id="bb2display" @ box+372,160 300×200) ===== */
 #bb2display {
@@ -94,16 +94,28 @@ body { background: #333; font-family: sans-serif; }
 #bb2-stage[data-mute="true"]  #sound_on  { display: none; }
 
 /* ===== ツールバー(mx:HBox @ box+268,750) ===== */
-#toolbar { position: absolute; left: 268px; top: 750px; display: flex; align-items: center; gap: 8px; }
-#card_in { font-size: 20px; width: 260px; padding: 4px 6px; }
-#toolbar button { font-size: 20px; padding: 6px 12px; touch-action: manipulation; }
-#toolbar .vrule { width: 50px; height: 24px; border: 0; border-left: 1px solid #999; }
+#toolbar {
+  position: absolute; left: 268px; top: 750px;
+  display: flex; align-items: center; gap: 6px;
+}
+#card_in { font-size: 18px; width: 200px; padding: 4px 6px; }
+#toolbar button {
+  font-size: 15px; padding: 5px 10px; touch-action: manipulation;
+  white-space: nowrap; cursor: pointer; border: 1px solid #777;
+  background: #eee; border-radius: 3px;
+}
+#toolbar button:active { background: #ccc; }
+#toolbar button.active { background: #7fceff; font-weight: bold; border-color: #2365c4; }
+#toolbar #toolbar_debug_toggle.active { background: #3f3; color: #000; font-weight: bold; border-color: #090; }
+#toolbar #toolbar_anim_toggle.active { background: #ffcc00; color: #000; font-weight: bold; border-color: #d4a000; }
+#toolbar .vrule { width: 1px; height: 22px; border: 0; border-left: 1px solid #999; margin: 0 3px; }
 
 /* ===== バーコードリーダ面板(mx:VBox id="camera_reader" @ box+356,95) ===== */
 #camera_reader {
   position: absolute; left: 356px; top: 95px; width: 340px;
   background: rgba(17,17,17,0.92); color: #fff; border: 1px solid #fff;
   display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px;
+  z-index: 10;
 }
 #camera_reader[hidden] { display: none; }
 .reader-title { background: #111; width: 200px; text-align: center; padding: 2px 0; }
@@ -117,26 +129,420 @@ body { background: #333; font-family: sans-serif; }
 .reader-controls button { font-size: 12px; }
 .reader-status { font-size: 11px; color: #ffcc66; min-height: 16px; text-align: center; }
 
-/* ===== カード一覧面板(mx:DataGrid ×2 @ box+1044・Phase 7-2 で XML 接続済) ===== */
-#card_browser { position: absolute; left: 1044px; top: 0; width: 500px; color: #000; }
-#card_browser table {
-  display: block; width: 500px; overflow-y: auto;
-  border-collapse: collapse; background: #fff; margin-bottom: 20px; border: 1px solid #999;
+/* ===== カード一覧面板(右側へ畳めるUI: サイドバー/スライドドロワー) ===== */
+#card_browser {
+  position: absolute;
+  top: 0; right: 0;
+  width: 500px;
+  height: 100%;
+  max-height: 100vh;
+  background: #f8f9fa;
+  border-left: 1px solid #d0d7de;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  gap: 8px;
+  z-index: 50;
+  color: #1f2328;
+  overflow: hidden; /* 全体をスクロールさせず、リスト内部をスクロールさせて画像を常時表示 */
+  box-sizing: border-box;
+  transition: transform 0.25s ease, opacity 0.2s ease;
 }
-#card_browser thead, #card_browser tbody { display: block; width: 100%; }
-#card_browser tr { display: table; width: 100%; table-layout: fixed; }
-#card_list_datagrid { height: 200px; }
-#card_name_datagrid { height: 300px; }
-#card_browser th { text-align: left; border-bottom: 1px solid #999; padding: 2px 6px; background: #eee; position: sticky; top: 0; }
-#card_browser td { border-bottom: 1px solid #ccc; padding: 3px 6px; cursor: pointer; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#card_browser tbody tr:hover td { background: #e6f2ff; }
-#card_browser tbody tr.selected td { background: #7fceff; font-weight: bold; }
-#card_image { width: 500px; height: 200px; object-fit: contain; background: #fff; cursor: pointer; }
-#card_image[src=""] { visibility: hidden; }
 
-/* ===== 骨組み専用開発情報バー(移植要素ではない) ===== */
+/* 畳まれた状態 (右へスライドして非表示) */
+body.cards-collapsed #card_browser {
+  transform: translateX(100%);
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* 畳まれた時に表示される復元タブ (画面右端) */
+.card-expand-tab {
+  position: fixed;
+  right: 0;
+  top: 50px;
+  z-index: 60;
+  background: #0969da;
+  color: #fff;
+  border: 1px solid #044289;
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: -2px 2px 10px rgba(0,0,0,0.35);
+  display: none;
+  touch-action: manipulation;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.card-expand-tab:hover { background: #1a7f37; transform: translateX(-2px); }
+.card-expand-tab:active { background: #044289; }
+body.cards-collapsed .card-expand-tab {
+  display: block;
+}
+
+/* カードブラウザ ヘッダー */
+.card-browser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 2px 6px 2px;
+  border-bottom: 1px solid #d0d7de;
+  flex-shrink: 0;
+}
+.card-browser-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-browser-icon {
+  font-size: 16px;
+}
+.card-browser-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1f2328;
+  letter-spacing: 0.5px;
+}
+.card-browser-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.card-fold-btn {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #24292f;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(27,31,36,0.04);
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+}
+.card-fold-btn:hover { background: #eaeef2; border-color: #afb8c1; }
+.card-fold-btn:active { background: #e1e4e8; box-shadow: inset 0 1px 0 rgba(27,31,36,0.15); }
+
+.card-debug-opt {
+  font-size: 11px;
+  font-weight: 600;
+  color: #57606a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+.card-debug-opt input {
+  cursor: pointer;
+}
+
+/* 各セクション */
+.card-section {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.card-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: #57606a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.card-preview-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: #0969da;
+}
+
+/* スクロールラッパー (テーブル2つを確実にスクロールさせる) */
+.card-table-scroll {
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #fff;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+.card-table-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.card-table-scroll::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 3px;
+}
+.card-table-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.card-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* カテゴリテーブルの高さ */
+.card-category-section {
+  flex-shrink: 0;
+}
+.card-category-scroll {
+  height: 95px;
+}
+
+/* カード名テーブルの高さ (残り領域を埋め、縦に収まる) */
+.card-names-section {
+  flex: 1 1 140px;
+  min-height: 120px;
+  overflow: hidden;
+}
+.card-names-scroll {
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+/* テーブルスタイル */
+#card_browser table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+#card_browser thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #f6f8fa;
+}
+#card_browser th {
+  text-align: left;
+  border-bottom: 1px solid #d0d7de;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #57606a;
+  text-transform: uppercase;
+  background: #f6f8fa;
+}
+#card_browser tbody tr {
+  border-bottom: 1px solid #f0f2f5;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+#card_browser tbody tr:last-child {
+  border-bottom: none;
+}
+#card_browser tbody td {
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #24292f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+#card_browser tbody tr:hover td {
+  background: #f0f7ff;
+  color: #0969da;
+}
+#card_browser tbody tr.selected td {
+  background: #0969da !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+/* カード画像プレビュー枠 */
+.card-preview-section {
+  flex-shrink: 0;
+}
+.card-image-box {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+}
+#card_image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  z-index: 2;
+}
+#card_image:hover {
+  transform: scale(1.02);
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.25));
+}
+#card_image[src=""], #card_image:not([src]) {
+  display: none;
+}
+.card-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #8c959f;
+  text-align: center;
+  padding: 10px;
+  user-select: none;
+  z-index: 1;
+}
+#card_image:not([src=""]) ~ .card-image-placeholder {
+  display: none;
+}
+
+/* ===== 骨組み専用開発情報バー ===== */
 #dev_note {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-  background: #000; color: #3f3; font: 12px/1.5 monospace;
-  padding: 4px 8px; display: flex; gap: 18px; flex-wrap: wrap;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
+  background: rgba(0, 0, 0, 0.88); color: #3f3; font: 12px/1.4 monospace;
+  padding: 4px 10px; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+#dev_note[hidden] {
+  display: none !important;
+}
+.dev-note-content {
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+}
+.dev-note-close {
+  background: transparent; color: #888; border: 1px solid #555;
+  border-radius: 3px; cursor: pointer; font-size: 12px; padding: 1px 7px;
+  touch-action: manipulation;
+}
+.dev-note-close:hover { color: #fff; border-color: #aaa; }
+
+/* モバイル / 狭い画面 (幅 1200px 未満) でのドロワー表示最適化 */
+@media (max-width: 1199px) {
+  #card_browser {
+    width: min(440px, 92vw);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* ===== 3D カードスキャン通過演出 ===== */
+.card-swipe-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1044px;
+  height: 750px;
+  perspective: 900px;
+  pointer-events: none;
+  z-index: 35;
+  overflow: visible;
+}
+.card-swipe-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 522px; /* 筐体表示幅 1044px の 1/2 */
+  height: 364px; /* 330:230 の比率を維持 (522 × 230 / 330 ≒ 364px) */
+  aspect-ratio: 330 / 230;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #b0b0b0;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.25);
+  transform-style: preserve-3d;
+  transform-origin: 50% 100%; /* 下端を基準に回転・移動 (スリット溝に下端が沿う) */
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+.card-3d-face {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  background: #fff;
+}
+#card_swipe_img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.card-3d-barcode {
+  display: none; /* カード画像自体の比率を100%保持するため非表示 */
+}
+.barcode-lines {
+  width: 90%;
+  height: 18px;
+  background: repeating-linear-gradient(
+    90deg,
+    #000 0px, #000 2px,
+    #fff 2px, #fff 4px,
+    #000 4px, #000 7px,
+    #fff 7px, #fff 8px,
+    #000 8px, #000 11px,
+    #fff 11px, #fff 14px,
+    #000 14px, #000 16px,
+    #fff 16px, #fff 18px
+  );
+}
+.barcode-num {
+  font: bold 8px monospace;
+  color: #111;
+  letter-spacing: 1px;
+}
+
+@keyframes cardSwipePass3D {
+  0% {
+    /* 1. 左手前上空から3Dで登場 */
+    transform: translate3d(60px, 220px, 120px) rotateX(24deg) rotateY(18deg) rotateZ(-10deg);
+    opacity: 0;
+  }
+  18% {
+    /* 2. スリット入口(下端 Y=650: 音ボタン上端)へ突入 */
+    transform: translate3d(180px, 286px, 30px) rotateX(12deg) rotateY(8deg) rotateZ(-4deg);
+    opacity: 1;
+  }
+  50% {
+    /* 3. 筐体スリット内(左端 X=268, 右端 X=790: SCALEボタン右端)を水平に高速スキャン通過 */
+    transform: translate3d(268px, 286px, 0px) rotateX(8deg) rotateY(0deg) rotateZ(0deg);
+    opacity: 1;
+    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.55));
+  }
+  82% {
+    /* 4. スリット出口(SCALEボタン右端を抜け出る) */
+    transform: translate3d(420px, 286px, 30px) rotateX(12deg) rotateY(-8deg) rotateZ(4deg);
+    opacity: 1;
+  }
+  100% {
+    /* 5. 右奥へと抜けて消滅 */
+    transform: translate3d(660px, 220px, 120px) rotateX(20deg) rotateY(-16deg) rotateZ(10deg);
+    opacity: 0;
+  }
+}
+
+.card-swipe-card.swiping {
+  animation: cardSwipePass3D 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.card-anim-opt {
+  font-size: 11px;
+  font-weight: 600;
+  color: #57606a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+.card-anim-opt input {
+  cursor: pointer;
 }

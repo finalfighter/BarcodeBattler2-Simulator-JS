@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Barcode Battler 2 Simulator (HTML5 skeleton)</title>
+<title>Barcode Battler 2 Simulator (HTML5)</title>
+<link rel="preload" as="image" href="assets/bb2graphics/bb2body.png">
+<link rel="preload" as="image" href="assets/img/bb2back.jpg">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <!--
@@ -78,10 +80,13 @@
     <!-- ===== 下部ツールバー(mx:HBox @ box+268,750) ===== -->
     <div id="toolbar">
       <input id="card_in" type="text" inputmode="numeric" maxlength="13" value="2997971385282" disabled>
-      <button id="card_in_button"         type="button">CARD IN</button>
+      <button id="card_in_button"          type="button">CARD IN</button>
       <button id="init_card_reader_button" type="button">CAMERA_IN</button>
       <hr class="vrule">
-      <button id="change_scale_button"    type="button">CHANGE_SCALE</button>
+      <button id="change_scale_button"     type="button">SCALE</button>
+      <button id="toolbar_cards_toggle"    type="button" title="カード一覧を開閉">CARDS</button>
+      <button id="toolbar_debug_toggle"    type="button" title="デバッグ情報表示切替">DEBUG</button>
+      <button id="toolbar_anim_toggle"     type="button" class="active" title="カード通過3Dアニメーション切替">ANIM</button>
     </div>
 
     <!-- ===== バーコードリーダ面板(mx:VBox id="camera_reader" @ box+356,95) =====
@@ -101,20 +106,82 @@
       <div id="reader_status" class="reader-status"></div>
     </div>
 
-    <!-- ===== カード一覧面板(mx:DataGrid ×2 @ box+1044・js/cards.js で XML 22件・表裏画像・バーコード入力接続済) ===== -->
-    <div id="card_browser">
-      <table id="card_list_datagrid"><thead><tr><th>name</th></tr></thead><tbody></tbody></table>
-      <table id="card_name_datagrid"><thead><tr><th>name</th></tr></thead><tbody></tbody></table>
-      <img id="card_image" src="" alt="">
+    <!-- ===== 3D カードスキャン通過演出レイヤー ===== -->
+    <div id="card_swipe_stage" class="card-swipe-stage">
+      <div id="card_swipe_item" class="card-swipe-card">
+        <div class="card-3d-face">
+          <img id="card_swipe_img" src="assets/barcode/bb2/100f.jpg" alt="" onerror="if(this.src.indexOf('blank.jpg')===-1)this.src='assets/barcode/bb2/blank.jpg'">
+          <div class="card-3d-barcode">
+            <div class="barcode-lines"></div>
+            <span id="card_swipe_number" class="barcode-num">2997971385282</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-  </div>
-</div>
+  </div> <!-- /#bb2-stage -->
 
-<!-- 骨組み専用のもともと対応物ない開発情報バー(移植要素ではない) -->
-<div id="dev_note">
-  <span id="screen_note">bb2_state: -1(電源OFF)</span>
-  <span id="status_note"></span>
+  <!-- ===== カード一覧面板(右側へ畳めるUI: 画面幅に応じてサイドバー/スライドドロワー) ===== -->
+  <aside id="card_browser">
+    <div class="card-browser-header">
+      <div class="card-browser-title-group">
+        <span class="card-browser-icon">🎴</span>
+        <span class="card-browser-title">CARD SELECTOR</span>
+      </div>
+      <div class="card-browser-header-tools">
+        <label class="card-debug-opt" title="デバッグ情報表示切替"><input type="checkbox" id="debug_checkbox"> DEBUG</label>
+        <label class="card-anim-opt" title="カード通過3Dアニメーション切替"><input type="checkbox" id="anim_checkbox" checked> ANIM</label>
+        <button id="btn_cards_collapse" type="button" class="card-fold-btn" title="カード一覧を右側へ畳む">畳む ▶</button>
+      </div>
+    </div>
+
+    <!-- カテゴリ選択 -->
+    <div class="card-section card-category-section">
+      <div class="card-section-label">CATEGORY / カードセット</div>
+      <div class="card-table-scroll card-category-scroll">
+        <table id="card_list_datagrid">
+          <thead><tr><th>セット名</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- カード選択 -->
+    <div class="card-section card-names-section">
+      <div class="card-section-label">CARDS / カード選択</div>
+      <div class="card-table-scroll card-names-scroll">
+        <table id="card_name_datagrid">
+          <thead><tr><th>カード名</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- カードプレビュー -->
+    <div class="card-section card-preview-section">
+      <div class="card-section-label">
+        <span>PREVIEW / カード画像</span>
+        <span class="card-preview-hint">🔄 クリックで表/裏切替</span>
+      </div>
+      <div class="card-image-box">
+        <img id="card_image" src="" alt="Card Preview" onerror="if(this.src.indexOf('blank.jpg')===-1)this.src='assets/barcode/bb2/blank.jpg'">
+        <div class="card-image-placeholder">カードを選択すると画像が表示されます</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 畳まれた状態でも画面右端から直接開ける復元タブ -->
+  <button id="btn_cards_expand" type="button" class="card-expand-tab" title="カード一覧を開く">◀ カード一覧</button>
+
+</div> <!-- /#viewport -->
+
+<!-- 骨組み専用開発情報バー(設定 show_debug で表示/非表示切替) -->
+<div id="dev_note" hidden>
+  <div class="dev-note-content">
+    <span id="screen_note">bb2_state: -1(電源OFF)</span>
+    <span id="status_note"></span>
+  </div>
+  <button id="dev_note_close" type="button" class="dev-note-close" title="閉じる">✕</button>
 </div>
 
 <script src="js/state.js"></script>
@@ -128,6 +195,7 @@
 <script src="js/cards.js"></script>
 <script src="js/reader.js"></script>
 <script src="js/view.js"></script>
+<script src="js/preload.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

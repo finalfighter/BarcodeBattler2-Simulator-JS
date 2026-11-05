@@ -42,7 +42,7 @@
   'use strict';
 
   var BB2 = global.BB2;
-  var STAGE_W = 1544, STAGE_H = 795;          /* MXML width/height 実測値 */
+  var STAGE_W = 1044, STAGE_H = 795;          /* キャビネット実寸 1044×783(bb2body.png) + 操作部 (1044×795) */
   var SCALE_PRESETS = [1, 0.75, 0.5];        /* CHANGE_SCALE 相当(design §1.1: 保存キー scale) */
   /* SoundEffect.as(1-76) の17プロパティと assets/se/*.mp3 対応表(Phase 7-1・card_in_mp3 と power_mp3 は同一ファイル) */
   var SE_SRC = {
@@ -70,6 +70,9 @@
     state: null,
     data: null,        /* store.load() の結果 {version, settings, save} */
     scaleIdx: 0,
+    cardsCollapsed: false,
+    showDebug: false,
+    cardAnimation: true,
     sePool: null,      /* Audio インスタンスプール(Phase 7-1) */
     lastSe: null,      /* 直近再生 SE 名(Phase 7-1 テスト・診断用) */
     /* 演出タイマー {id, kind}。kind: power/select/decide/insert/error/skip/wait。
@@ -107,6 +110,19 @@
       e.reader_status = id('reader_status');
       e.screen_note = id('screen_note');
       e.status_note = id('status_note');
+      e.dev_note = id('dev_note');
+      e.dev_note_close = id('dev_note_close');
+      e.card_browser = id('card_browser');
+      e.btn_cards_collapse = id('btn_cards_collapse');
+      e.btn_cards_expand = id('btn_cards_expand');
+      e.toolbar_cards_toggle = id('toolbar_cards_toggle');
+      e.toolbar_debug_toggle = id('toolbar_debug_toggle');
+      e.toolbar_anim_toggle = id('toolbar_anim_toggle');
+      e.debug_checkbox = id('debug_checkbox');
+      e.anim_checkbox = id('anim_checkbox');
+      e.card_swipe_item = id('card_swipe_item');
+      e.card_swipe_img = id('card_swipe_img');
+      e.card_swipe_number = id('card_swipe_number');
       e.lights = [id('light1'), id('light2'), id('light3'), id('light4'), id('light5')];
       e.digits = {
         hp_1p: id('hp_1p'), st_1p: id('st_1p'), df_1p: id('df_1p'),
@@ -125,10 +141,48 @@
       /* 裏技スイッチ(value_shift — 2026-11-04 実測済み・下記配線) */
       var shiftButtons = ['l_power', 'l_battle', 'r_power', 'r_battle'];
 
-      /* 初期設定(保存キー scale / sound_mute / auto_input の復元) */
+      /* 初期設定(保存キー scale / sound_mute / auto_input / show_debug / cards_collapsed の復元) */
       var idx = SCALE_PRESETS.indexOf(data.settings.scale);
       this.scaleIdx = idx < 0 ? 0 : idx;
-      e.auto_input.checked = !!data.settings.auto_input;
+      if (e.auto_input) e.auto_input.checked = !!data.settings.auto_input;
+
+      /* カード一覧初期状態: 設定優先、未設定時は狭い画面(<1000px)は既定折りたたみ */
+      var isNarrow = (typeof window !== 'undefined' && window.innerWidth < 1000);
+      if (data.settings.cards_collapsed !== undefined) {
+        this.cardsCollapsed = !!data.settings.cards_collapsed;
+      } else {
+        this.cardsCollapsed = isNarrow;
+      }
+
+      /* デバッグテキスト初期状態 (既定値: false) */
+      this.showDebug = !!data.settings.show_debug;
+
+      /* 3Dカードスキャンアニメーション初期状態 (既定値: true) */
+      this.cardAnimation = data.settings.card_animation !== undefined ? !!data.settings.card_animation : true;
+
+      /* URL クエリによる上書き(?debug=1 / ?debug=0, ?cards=collapsed / ?cards=open, ?anim=1 / ?anim=0) */
+      var search = (typeof location !== 'undefined' && location.search) ? location.search : '';
+      if (search) {
+        if (/[?&]debug=(1|true|yes|on)/i.test(search)) {
+          this.showDebug = true;
+        } else if (/[?&]debug=(0|false|no|off)/i.test(search)) {
+          this.showDebug = false;
+        }
+        if (/[?&]cards=(0|collapsed|hide|close)/i.test(search)) {
+          this.cardsCollapsed = true;
+        } else if (/[?&]cards=(1|open|show)/i.test(search)) {
+          this.cardsCollapsed = false;
+        }
+        if (/[?&]anim=(1|true|yes|on)/i.test(search)) {
+          this.cardAnimation = true;
+        } else if (/[?&]anim=(0|false|no|off)/i.test(search)) {
+          this.cardAnimation = false;
+        }
+      }
+
+      this.syncCardsCollapsed();
+      this.syncShowDebug();
+      this.syncCardAnimation();
 
       var S = BB2.State, self = this;
 
@@ -277,6 +331,40 @@
         self.note('scale=' + self.data.settings.scale);
       });
 
+      /* --- カード一覧 開閉・折りたたみ UI 接続 --- */
+      if (e.btn_cards_collapse) {
+        this.bind(e.btn_cards_collapse, function () { self.setCardsCollapsed(true); });
+      }
+      if (e.btn_cards_expand) {
+        this.bind(e.btn_cards_expand, function () { self.setCardsCollapsed(false); });
+      }
+      if (e.toolbar_cards_toggle) {
+        this.bind(e.toolbar_cards_toggle, function () { self.toggleCards(); });
+      }
+
+      /* --- デバッグ情報バー ON/OFF 切替 --- */
+      if (e.toolbar_debug_toggle) {
+        this.bind(e.toolbar_debug_toggle, function () { self.toggleShowDebug(); });
+      }
+      if (e.debug_checkbox) {
+        e.debug_checkbox.addEventListener('change', function () {
+          self.setShowDebug(self.el.debug_checkbox.checked);
+        });
+      }
+      if (e.dev_note_close) {
+        this.bind(e.dev_note_close, function () { self.setShowDebug(false); });
+      }
+
+      /* --- 3D カードスキャン通過演出 ON/OFF 切替 --- */
+      if (e.toolbar_anim_toggle) {
+        this.bind(e.toolbar_anim_toggle, function () { self.toggleCardAnimation(); });
+      }
+      if (e.anim_checkbox) {
+        e.anim_checkbox.addEventListener('change', function () {
+          self.setCardAnimation(self.el.anim_checkbox.checked);
+        });
+      }
+
       /* --- サウンド表示切替(元 84-119 sound_mute_load / change_mute_load・Phase 7-1 で SE 再生接続済) --- */
       this.bind(e.sound_indicator, function () {
         self.data.settings.sound_mute = !self.data.settings.sound_mute;
@@ -397,6 +485,9 @@
       if (this.fx && this.fx.kind !== 'wait') {     /* 待機演出は受付可(元 875-917 でリスナ付与済み)・それ中は不可(1006-1009) */
         this.note('演出中(insert/error/skip)は CARD IN 受付けない(元 1006-1009 相当)');
         return;
+      }
+      if (this.cardAnimation) {
+        this.triggerCardSwipeAnimation();
       }
       if (s.mode === 1) {
         if (s.state === S.STATES.CARD_1 || s.state === S.STATES.CARD_2) {
@@ -4198,16 +4289,161 @@
 
     /* fit scale × CHANGE_SCALE プラグ を transform: scale で適用(design §1.1 対応表) */
     applyScale: function () {
+      if (!this.el || !this.el.viewport || !this.el.stage) return;
       var vw = this.el.viewport.clientWidth || STAGE_W;
       var vh = this.el.viewport.clientHeight || STAGE_H;
-      var base = Math.min(vw / STAGE_W, vh / STAGE_H, 1);      /* 収まる範囲まで自動縮小(PC/スマホ対応) */
+
+      /* デスクトップ(幅 1200px 以上)でカード一覧が開いている時は右側 500px をカード用に確保 */
+      var cardsOpenOnDesktop = !this.cardsCollapsed && (vw >= 1200);
+      var cardBrowserW = cardsOpenOnDesktop ? 500 : 0;
+      var availW = Math.max(vw - cardBrowserW, 320);
+
+      var base = Math.min(availW / STAGE_W, vh / STAGE_H, 1);      /* 収まる範囲まで自動縮小(PC/スマホ対応) */
       var eff = base * SCALE_PRESETS[this.scaleIdx];
-      var tx = Math.max((vw - STAGE_W * eff) / 2, 0);
+      var tx = Math.max((availW - STAGE_W * eff) / 2, 0);
       var ty = Math.max((vh - STAGE_H * eff) / 2, 0);
       this.el.stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + eff + ')';
     },
 
-    note: function (msg) { this.el.status_note.textContent = msg; }
+    setCardsCollapsed: function (collapsed) {
+      this.cardsCollapsed = !!collapsed;
+      this.data.settings.cards_collapsed = this.cardsCollapsed;
+      BB2.Store.saveSettings(this.data);
+      this.syncCardsCollapsed();
+      this.applyScale();
+      this.note('cards_collapsed=' + this.cardsCollapsed);
+    },
+
+    toggleCards: function () {
+      this.setCardsCollapsed(!this.cardsCollapsed);
+    },
+
+    syncCardsCollapsed: function () {
+      if (typeof document === 'undefined' || !document.body) return;
+      document.body.classList.toggle('cards-collapsed', this.cardsCollapsed);
+      if (this.el.toolbar_cards_toggle) {
+        this.el.toolbar_cards_toggle.classList.toggle('active', !this.cardsCollapsed);
+      }
+    },
+
+    setShowDebug: function (show) {
+      this.showDebug = !!show;
+      this.data.settings.show_debug = this.showDebug;
+      BB2.Store.saveSettings(this.data);
+      this.syncShowDebug();
+      this.note('show_debug=' + this.showDebug);
+    },
+
+    toggleShowDebug: function () {
+      this.setShowDebug(!this.showDebug);
+    },
+
+    syncShowDebug: function () {
+      if (this.el.dev_note) {
+        this.el.dev_note.hidden = !this.showDebug;
+      }
+      if (this.el.debug_checkbox) {
+        this.el.debug_checkbox.checked = this.showDebug;
+      }
+      if (this.el.toolbar_debug_toggle) {
+        this.el.toolbar_debug_toggle.classList.toggle('active', this.showDebug);
+      }
+    },
+
+    setCardAnimation: function (enable) {
+      this.cardAnimation = !!enable;
+      this.data.settings.card_animation = this.cardAnimation;
+      BB2.Store.saveSettings(this.data);
+      this.syncCardAnimation();
+      this.note('card_animation=' + this.cardAnimation);
+      if (this.cardAnimation) {
+        this.triggerCardSwipeAnimation();
+      }
+    },
+
+    toggleCardAnimation: function () {
+      this.setCardAnimation(!this.cardAnimation);
+    },
+
+    syncCardAnimation: function () {
+      if (this.el.toolbar_anim_toggle) {
+        this.el.toolbar_anim_toggle.classList.toggle('active', this.cardAnimation);
+      }
+      if (this.el.anim_checkbox) {
+        this.el.anim_checkbox.checked = this.cardAnimation;
+      }
+    },
+
+    triggerCardSwipeAnimation: function () {
+      var item = this.el && this.el.card_swipe_item ? this.el.card_swipe_item : document.getElementById('card_swipe_item');
+      if (!item) return;
+
+      var cardImg = this.el && this.el.card_swipe_img ? this.el.card_swipe_img : document.getElementById('card_swipe_img');
+      var cardNum = this.el && this.el.card_swipe_number ? this.el.card_swipe_number : document.getElementById('card_swipe_number');
+      var browserImg = document.getElementById('card_image');
+      var cardIn = this.el && this.el.card_in ? this.el.card_in.value : '';
+
+      if (cardImg) {
+        /* カード通過画像のリンク切れフォールバック */
+        cardImg.onerror = function () {
+          if (this.src && this.src.indexOf('blank.jpg') === -1) {
+            this.src = 'assets/barcode/bb2/blank.jpg';
+          }
+        };
+
+        /* 選択中カードのバーコードと入力欄数値の一致判定: 一致時のみカード画像を使用、不一致時は blank.jpg */
+        var inputVal = (cardIn || '').trim();
+        var selectedBarcode = (this.cardBrowser && this.cardBrowser.selectedCardBarcode != null)
+          ? String(this.cardBrowser.selectedCardBarcode).trim()
+          : '';
+        var isMatched = false;
+        if (selectedBarcode && inputVal) {
+          isMatched = (inputVal === selectedBarcode) ||
+            (BB2.Cards && BB2.Cards.padBarcode13 && BB2.Cards.padBarcode13(inputVal) === BB2.Cards.padBarcode13(selectedBarcode));
+        }
+
+        if (isMatched && browserImg && browserImg.src && browserImg.src.indexOf('assets/') >= 0 && browserImg.src.indexOf('blank.jpg') === -1) {
+          cardImg.src = browserImg.src;
+        } else {
+          cardImg.src = 'assets/barcode/bb2/blank.jpg';
+        }
+
+        /* 筐体表示幅 1044px の 1/2 (522px) を長辺とし、画像比率(330:230)を維持 */
+        var updateRatio = function () {
+          var nw = cardImg.naturalWidth || 330;
+          var nh = cardImg.naturalHeight || 230;
+          if (nw && nh) {
+            var cardWidth = 522;
+            var cardHeight = Math.round(cardWidth * (nh / nw));
+            item.style.width = cardWidth + 'px';
+            item.style.height = cardHeight + 'px';
+            item.style.aspectRatio = nw + ' / ' + nh;
+          }
+        };
+
+        if (cardImg.complete && cardImg.naturalWidth) {
+          updateRatio();
+        } else {
+          cardImg.onload = updateRatio;
+        }
+      }
+      if (cardNum) {
+        cardNum.textContent = cardIn || '2997971385282';
+      }
+
+      /* アニメーションのリセットと再発火 */
+      item.classList.remove('swiping');
+      void item.offsetWidth; /* リフロー強制で CSS アニメーションを再起動 */
+      item.classList.add('swiping');
+
+      setTimeout(function () {
+        item.classList.remove('swiping');
+      }, 750);
+    },
+
+    note: function (msg) {
+      if (this.el.status_note) this.el.status_note.textContent = msg;
+    }
   };
 
   BB2.View = View;

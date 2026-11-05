@@ -96,19 +96,28 @@ assert.equal(s.state, 0, 'powerOff は 0 からも 0');
 
 /* --- store: 既定値・保存・壊れた JSON からの復旧 --- */
 let d = Store.load();
-assert.deepEqual(mainRealm(d.settings), { scale: 1, sound_mute: false, auto_input: false }, '既定 settings');
+assert.deepEqual(mainRealm(d.settings), { scale: 1, sound_mute: false, auto_input: false, show_debug: false, cards_collapsed: false, card_animation: true }, '既定 settings');
 assert.equal(d.save, null, 'save は Phase 6 まで null');
 
 d.settings.scale = 0.75;
 d.settings.sound_mute = true;
+d.settings.show_debug = true;
+d.settings.cards_collapsed = true;
+d.settings.card_animation = false;
 assert.equal(Store.saveSettings(d), true, 'saveSettings 成功');
 let d2 = Store.load();
 assert.equal(d2.settings.scale, 0.75, 'scale 永続化');
 assert.equal(d2.settings.sound_mute, true, 'sound_mute 永続化');
+assert.equal(d2.settings.show_debug, true, 'show_debug 永続化');
+assert.equal(d2.settings.cards_collapsed, true, 'cards_collapsed 永続化');
+assert.equal(d2.settings.card_animation, false, 'card_animation 永続化');
 
 lsData[Store.KEY] = '{{{壊れたJSON';
 let d3 = Store.load();
 assert.equal(d3.settings.scale, 1, '壊れた JSON でも既定値に戻る');
+assert.equal(d3.settings.card_animation, true, 'card_animation 既定値復帰');
+assert.equal(d3.settings.show_debug, false, 'show_debug 既定値復帰');
+assert.equal(d3.settings.cards_collapsed, false, 'cards_collapsed 既定値復帰');
 assert.equal(d3.version, 1, 'version 既定');
 
 lsData[Store.KEY] = JSON.stringify({ version: 1, settings: { scale: 0.5, unknown_key: 1 }, save: null });

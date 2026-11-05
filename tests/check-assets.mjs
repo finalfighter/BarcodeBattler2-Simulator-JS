@@ -21,8 +21,8 @@ for (const m of css.matchAll(/url\("([^"]+)"\)/g)) {
   paths.add(resolve(root, 'css', m[1]));
 }
 
-/* js/textdisplay.js の 7 セグ CHAR_SRC 写し(assets/bb2digits/*.png 28 件)および js/view.js の SE_SRC(assets/se/*.mp3 16 件)を JS 中のリテラルから照合 */
-for (const f of ['js/textdisplay.js', 'js/view.js']) {
+/* js/textdisplay.js の 7 セグ CHAR_SRC 写し(assets/bb2digits/*.png 28 件)、js/view.js の SE_SRC(assets/se/*.mp3 16 件)、js/preload.js の先読みアセット 73 件を JS 中のリテラルから照合 */
+for (const f of ['js/textdisplay.js', 'js/view.js', 'js/preload.js']) {
   for (const m of readFileSync(resolve(root, f), 'utf8').matchAll(/["'](assets\/[^"']+\.(?:png|jpg|jpeg|gif|mp3))["']/g)) {
     paths.add(resolve(root, m[1]));
   }

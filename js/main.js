@@ -10,7 +10,10 @@
     var state = BB2.State.create();
     BB2.State.standby(state);   /* 元 init_bb2 の power_off 呼出相当(起動→bb2_state 0) */
     BB2.View.init(state, data);
-    console.info('[BB2] HTML5 skeleton ready. bb2_state shell only (game logic / barcode reader 未移植).');
+    if (BB2.Preloader && typeof BB2.Preloader.start === 'function') {
+      BB2.Preloader.start(BB2.View);
+    }
+    console.info('[BB2] HTML5 simulator ready.');
   }
 
   if (global.document && global.document.readyState === 'loading') {

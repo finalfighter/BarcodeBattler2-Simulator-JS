@@ -402,6 +402,15 @@
     var cardImage = document.getElementById('card_image');
     if (!listTable || !nameTable || !cardImage) return;
 
+    var BLANK_CARD_IMAGE = 'assets/barcode/bb2/blank.jpg';
+
+    /* 画像読み込みエラー(404・リンク切れ等)時の blank.jpg フォールバック */
+    cardImage.addEventListener('error', function () {
+      if (this.src && this.src.indexOf('blank.jpg') === -1) {
+        this.src = BLANK_CARD_IMAGE;
+      }
+    });
+
     var listTbody = listTable.querySelector('tbody') || listTable.appendChild(document.createElement('tbody'));
     var nameTbody = nameTable.querySelector('tbody') || nameTable.appendChild(document.createElement('tbody'));
 
@@ -410,33 +419,59 @@
       cardItems: [],
       selectedListItem: null,
       selectedCardItem: null,
+      selectedCardBarcode: '',
       frontBack: true /* 60: true:表 false:裏 */
     };
 
-    /* 107-115: change_front_back_image */
+    /* 入力欄(card_in)のバーコード数値と選択中カードのバーコードが一致するか検証し画像を同期 */
+    function syncCardImageWithInput() {
+      if (!cardImage) return;
+      var cardInVal = (view && view.el && view.el.card_in) ? String(view.el.card_in.value || '').trim() : '';
+      var item = state.selectedCardItem;
+      var expectedCode = (state.selectedCardBarcode != null ? String(state.selectedCardBarcode) : '').trim();
+
+      var match = false;
+      if (item && cardInVal && expectedCode) {
+        match = (cardInVal === expectedCode) || (padBarcode13(cardInVal) === padBarcode13(expectedCode));
+      }
+
+      // 入力欄の数値が異なる場合、またはカード未選択の場合は blank.jpg を表示
+      if (!match || !item) {
+        cardImage.src = BLANK_CARD_IMAGE;
+        return;
+      }
+
+      var targetImg = state.frontBack ? item.front_img : item.back_img;
+      cardImage.src = targetImg ? ('assets/' + targetImg) : BLANK_CARD_IMAGE;
+    }
+
+    state.syncCardImageWithInput = syncCardImageWithInput;
+
+    /* 107-115: change_front_back_image (表裏切替) */
     cardImage.addEventListener('click', function () {
       if (!state.selectedCardItem) return;
-      if (state.frontBack) {
-        cardImage.src = state.selectedCardItem.back_img ? ('assets/' + state.selectedCardItem.back_img) : '';
-        state.frontBack = false;
-      } else {
-        cardImage.src = state.selectedCardItem.front_img ? ('assets/' + state.selectedCardItem.front_img) : '';
-        state.frontBack = true;
-      }
+      state.frontBack = !state.frontBack;
+      syncCardImageWithInput();
     });
+
+    /* 入力欄の編集監視: 手動入力や変更で数値が変わったら即座に blank.jpg と同期 */
+    if (view && view.el && view.el.card_in) {
+      view.el.card_in.addEventListener('input', syncCardImageWithInput);
+      view.el.card_in.addEventListener('change', syncCardImageWithInput);
+    }
 
     /* 64-85: barcode_cards_load + barcode_cards_load_done */
     function onSelectCard(item, tr) {
       state.selectedCardItem = item;
       state.frontBack = true;
+      state.selectedCardBarcode = String(item.barcode || '');
       Array.prototype.forEach.call(nameTbody.querySelectorAll('tr'), function (r) {
         r.classList.toggle('selected', r === tr);
       });
-      cardImage.src = item.front_img ? ('assets/' + item.front_img) : '';
-      /* 即時にフォールバック値があれば設定(非同期画像ロード待ちによる取りこぼし防止) */
       if (item.barcode && view && view.el && view.el.card_in) {
         view.el.card_in.value = String(item.barcode);
       }
+      syncCardImageWithInput();
 
       /* 裏面画像を読み込んで clip(0,178,330,50) → analyze_barcode_data、失敗または画像不在時は item.barcode フォールバック */
       if (item.back_img && typeof Image !== 'undefined') {
@@ -444,9 +479,11 @@
         backLoader.onload = function () {
           var clipped = clipImageToData(backLoader, 0, 178, 330, 50);
           analyzeBarcodeData(clipped, item.barcode, function (code) {
+            state.selectedCardBarcode = code || String(item.barcode || '');
             if (view && view.el && view.el.card_in) {
               view.el.card_in.value = code;
             }
+            syncCardImageWithInput();
             if (view && typeof view.note === 'function') {
               view.note('カード選択: ' + item.name + (code ? ' (barcode=' + code + ')' : ''));
             }
@@ -454,9 +491,11 @@
         };
         backLoader.onerror = function () {
           var fallback = String(item.barcode || '');
+          state.selectedCardBarcode = fallback;
           if (view && view.el && view.el.card_in) {
             view.el.card_in.value = fallback;
           }
+          syncCardImageWithInput();
           if (view && typeof view.note === 'function') {
             view.note('カード選択: ' + item.name + (fallback ? ' (barcode=' + fallback + ')' : ''));
           }
@@ -464,9 +503,11 @@
         backLoader.src = 'assets/' + item.back_img;
       } else {
         var code = String(item.barcode || '');
+        state.selectedCardBarcode = code;
         if (view && view.el && view.el.card_in) {
           view.el.card_in.value = code;
         }
+        syncCardImageWithInput();
       }
     }
 

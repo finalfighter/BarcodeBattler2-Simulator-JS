@@ -14,7 +14,14 @@
   var KEY = 'bb2_simulator';
   var DEFAULTS = {
     version: 1,
-    settings: { scale: 1, sound_mute: false, auto_input: false },
+    settings: {
+      scale: 1,
+      sound_mute: false,
+      auto_input: false,
+      show_debug: false,          /* デバッグ情報バー表示設定(既定値: false) */
+      cards_collapsed: false,     /* カード一覧折りたたみ設定(既定値: false) */
+      card_animation: true        /* 3Dカード通過アニメーション設定(既定値: true) */
+    },
     save: null   /* Phase 6: { c1_world_data: {type:"C1WorldData",...}, barcode_data_c1: [{type:"BarcodeData",...}|null] } */
   };
 
