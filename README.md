@@ -11,7 +11,7 @@ A port code of the ActionScript version to HTML and JavaScript
 https://github.com/finalfighter/BarcodeBattler2-Simulator
 
 ## Demo
-http://www.yuko2ch.net/barcode/BarcodeBattler2Simulator.html
+http://www.yuko2ch.net/barcode/BarcodeBattler2SimulatorJS/
 
 ## Requirement
 HTML Browser
