@@ -32,6 +32,8 @@
     this.mp = 0;
     this.special = 0;
     this.live = true; /* 生死(C2) */
+    this.st_disp = undefined; /* 実機初期表示値(内部ST20000超え時の表示値再現用) */
+    this.df_disp = undefined; /* 実機初期表示値(内部DF20000超え時の表示値再現用) */
   }
 
   function BarcodeRead() {
@@ -229,24 +231,62 @@
 
       if (d.race === 0 && d.hp >= 200) {
         check_stdf = toInt(barcode.charAt(3) + barcode.charAt(4));
-        /* 実機仕様修正: 元 AS3 版は 13,29,45,61,77,93 だったが、実機仕様 (14)+(16*0〜5) の 14,30,46,62,78,94 に修正 */
-        if (check_stdf === 14 || check_stdf === 30 || check_stdf === 46 ||
-            check_stdf === 62 || check_stdf === 78 || check_stdf === 94) {
-          d.st += 100; d.df += 100;
+        /* 実機仕様:
+         * グループA: (13)+(16*0〜5) [13, 29, 45, 61, 77, 93]
+         *   表示ST・DFともに万の位が1(ST+10000, DF+10000)。内部STの追加+10000はなし。
+         * グループB: (14)+(16*0〜5) [14, 30, 46, 62, 78, 94]
+         *   通常ST+10000に加え、DF+10000、さらに内部ST+10000(計ST+20000)。
+         *   初期表示はST+10000のまま(st_disp)、アイテム使用・合体で19900に変化。
+         *   内部STが25600以上(256以上)の場合は実機仕様で-25500(-255)減算。
+         *   ラップ時は初期表示から減算後の値が表示される。
+         */
+        var isGroupA0 = (check_stdf === 13 || check_stdf === 29 || check_stdf === 45 ||
+                         check_stdf === 61 || check_stdf === 77 || check_stdf === 93);
+        var isGroupB0 = (check_stdf === 14 || check_stdf === 30 || check_stdf === 46 ||
+                         check_stdf === 62 || check_stdf === 78 || check_stdf === 94);
+
+        if (isGroupA0) {
+          d.st += 100;
+          d.df += 100;
+        } else if (isGroupB0) {
+          d.df += 100;
+          var disp_st0 = d.st + 100; /* 初期表示用(ST+10000) */
+          d.st += 200; /* 通常+100 + 特殊+100 */
+          if (d.st >= 256) {
+            d.st -= 255; /* 実機仕様: 25500減算 (-255) */
+            disp_st0 = d.st; /* ラップ時は入力時点で減算後の値が表示される */
+          }
+          d.st_disp = disp_st0;
+        } else {
+          d.st += 100;
         }
-        d.st += 100;
-        /* 実機仕様修正(書き込み106): 6502 CPU 8bit wrap (modulo 256)。256以上は -25600 (-256) */
-        if (d.st >= 256) { d.st -= 256; }
       } else if (d.race === 1 && d.hp >= 200) {
         check_stdf = toInt(barcode.charAt(5) + barcode.charAt(6));
-        /* 実機仕様修正: 元 AS3 版は 13,29,45,61,77,93 だったが、実機仕様 (14)+(16*0〜5) の 14,30,46,62,78,94 に修正 */
-        if (check_stdf === 14 || check_stdf === 30 || check_stdf === 46 ||
-            check_stdf === 62 || check_stdf === 78 || check_stdf === 94) {
-          d.st += 100; d.df += 100;
+        /* 実機仕様:
+         * グループC: (13)+(16*0〜5) [13, 29, 45, 61, 77, 93]
+         *   DFのみ万の位が1(通常の種族1と同じ動作 DF+10000)。ST加算なし、内部DF追加なし。
+         * グループD: (14)+(16*0〜5) [14, 30, 46, 62, 78, 94]
+         *   通常DF+10000に加え、ST+10000、さらに内部DF+10000(計DF+20000)。
+         *   初期表示はDF+10000のまま(df_disp)、アイテム使用・合体で19900に変化。
+         *   内部DFが25600以上(256以上)の場合は実機仕様で-25500(-255)減算。
+         *   ラップ時は初期表示から減算後の値が表示される。
+         */
+        var isGroupD1 = (check_stdf === 14 || check_stdf === 30 || check_stdf === 46 ||
+                         check_stdf === 62 || check_stdf === 78 || check_stdf === 94);
+
+        if (isGroupD1) {
+          d.st += 100;
+          var disp_df1 = d.df + 100; /* 初期表示用(DF+10000) */
+          d.df += 200; /* 通常+100 + 特殊+100 */
+          if (d.df >= 256) {
+            d.df -= 255; /* 実機仕様: 25500減算 (-255) */
+            disp_df1 = d.df; /* ラップ時は入力時点で減算後の値が表示される */
+          }
+          d.df_disp = disp_df1;
+        } else {
+          /* グループC含む通常: DF+10000 のみ */
+          d.df += 100;
         }
-        d.df += 100;
-        /* 実機仕様修正(書き込み106): 元 AS3 版は st 参照バグかつ -255 だったが、実機仕様(8bit modulo 256)通り df -= 256 に修正 */
-        if (d.df >= 256) { d.df -= 256; }
       } else if (d.race === 2 && d.hp >= 200) {
         d.st += 100; d.df += 100;
       }

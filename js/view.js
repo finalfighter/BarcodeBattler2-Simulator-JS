@@ -4215,8 +4215,10 @@
     showCard: function (hpEl, stEl, dfEl, c) {          /* 元 1486-1488・1504-1506 の表示相当(c=null で空欄) */
       if (!c) { this.setDigit(hpEl, ''); this.setDigit(stEl, ''); this.setDigit(dfEl, ''); return; }
       this.setDigit(hpEl, c.hp);                       /* 数値は disp_val で abs+00 付与(195→"19500")・0 は "   00" */
-      this.setDigit(stEl, (c.st > 199) ? 199 : c.st);  /* 199 切上げは 19900 表示(TextInputSprite 351 行コメント仕様) */
-      this.setDigit(dfEl, (c.df > 199) ? 199 : c.df);
+      var stVal = (c.st_disp !== undefined) ? c.st_disp : ((c.st > 199) ? 199 : c.st);  /* 199 切上げは 19900 表示。st_disp があれば初期表示値を優先 */
+      var dfVal = (c.df_disp !== undefined) ? c.df_disp : ((c.df > 199) ? 199 : c.df);
+      this.setDigit(stEl, stVal);
+      this.setDigit(dfEl, dfVal);
     },
 
     /* 押下表現(design §1.1: ImageButtonSprite → pointerdown/pointerup + .selected) + click 配線 */
