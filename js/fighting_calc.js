@@ -438,41 +438,72 @@
           input.m0018 = this.nes.ror(input.m0018);
         }
 
+        // 実機BB2合体時ダメージ計算パイプライン:
+        // 種族相性 → +1 → 守護星相性の順で計算し、19,200 (page16実機データ) に完全一致させる
+        input.m001C = this.race_compatibility[fd1.race1][fd2.race1];
+        input.m001D = 0x00;
+        this.barcode_world.db01(input);
+        input.m0018 = input.m0024;
+        input.m0019 = input.m0025;
+        input.m001C = 0x0A;
+        input.m001D = 0x00;
+        this.barcode_world.dbcd(input); // ÷10
+
+        // +1
+        input.m0024 = input.m0024 + 1;
+        if (input.m0024 === 0) {
+          input.m0025 = input.m0025 + 1;
+        }
+
+        // ×守護星(8-12)÷10
+        input.m0018 = input.m0024;
+        input.m0019 = input.m0025;
+        input.m001C = this.star_compatibility[fd1.race1][this.protection_star];
+        input.m001D = 0x00;
+        this.barcode_world.db01(input);
+        input.m0018 = input.m0024;
+        input.m0019 = input.m0025;
+        input.m001C = 0x0A;
+        input.m001D = 0x00;
+        this.barcode_world.dbcd(input); // ÷10
+
+        basic_damage = (input.m0025) * 0x100 + input.m0024;
+
       } else {
-        // 2P(486-491: 合体相性 100%)
+        // 通常(非合体)時(486-491)
         input.m0019 = this.nes.lsr(input.m0019);
         input.m0018 = this.nes.ror(input.m0018);
+
+        // ×守護星(8-12)÷10(493-504: db01 の 32bit 積のうち m0024/m0025 の 16bit だけ使う元 28 箇所と同じ癖)
+        input.m001C = this.star_compatibility[fd1.race1][this.protection_star];
+        input.m001D = 0x00;
+        this.barcode_world.db01(input);
+        input.m0018 = input.m0024;
+        input.m0019 = input.m0025;
+        input.m001C = 0x0A;
+        input.m001D = 0x00;
+        this.barcode_world.dbcd(input); // ÷10
+        input.m0018 = input.m0024;
+        input.m0019 = input.m0025;
+
+        // ×種族相性差(8-12)÷10(506-515)
+        input.m001C = this.race_compatibility[fd1.race1][fd2.race1];
+        input.m001D = 0x00;
+        this.barcode_world.db01(input);
+        input.m0018 = input.m0024;
+        input.m0019 = input.m0025;
+        input.m001C = 0x0A;
+        input.m001D = 0x00;
+        this.barcode_world.dbcd(input); // ÷10
+
+        // +1(516-519: 商の下位字节+1・AS int では m0024=255 でも 256 になって ==0 にならないため上位への桁上げ分岐は事実上飛ぶ)
+        input.m0024 = input.m0024 + 1;
+        if (input.m0024 === 0) {
+          input.m0025 = input.m0025 + 1;
+        }
+
+        basic_damage = (input.m0025) * 0x100 + input.m0024; // 元 521
       }
-
-      // ×守護星(8-12)÷10(493-504: db01 の 32bit 積のうち m0024/m0025 の 16bit だけ使う元 28 箇所と同じ癖)
-      input.m001C = this.star_compatibility[fd1.race1][this.protection_star];
-      input.m001D = 0x00;
-      this.barcode_world.db01(input);
-      input.m0018 = input.m0024;
-      input.m0019 = input.m0025;
-      input.m001C = 0x0A;
-      input.m001D = 0x00;
-      this.barcode_world.dbcd(input); // ÷10
-      input.m0018 = input.m0024;
-      input.m0019 = input.m0025;
-
-      // ×種族相性差(8-12)÷10(506-515)
-      input.m001C = this.race_compatibility[fd1.race1][fd2.race1];
-      input.m001D = 0x00;
-      this.barcode_world.db01(input);
-      input.m0018 = input.m0024;
-      input.m0019 = input.m0025;
-      input.m001C = 0x0A;
-      input.m001D = 0x00;
-      this.barcode_world.dbcd(input); // ÷10
-
-      // +1(516-519: 商の下位字节+1・AS int では m0024=255 でも 256 になって ==0 にならないため上位への桁上げ分岐は事実上飛ぶ)
-      input.m0024 = input.m0024 + 1;
-      if (input.m0024 === 0) {
-        input.m0025 = input.m0025 + 1;
-      }
-
-      basic_damage = (input.m0025) * 0x100 + input.m0024; // 元 521
 
     } else {
       basic_damage = basic_damage + 1; // 元 523-525: DF 以下でも 1(最低 1)
