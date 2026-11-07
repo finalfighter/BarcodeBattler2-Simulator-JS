@@ -652,18 +652,14 @@
     this.barcode_world.dbcd(input); // 元 764・/10
     // 元 766-767 の `input.m0024; input.m0025;` は参照だけの意味のない文。JS ではコメントのみで素通し(golden と同じ)
 
-    if (fd2.special1 === 43 || fd2.special2 === 43) { // 元 769-774・特殊能力43 相手の回復力ダウン(×0.5)を装うブロック
-      this.nes.clc(); // 元 771
-      this.nes.lsr(input.m0025); // 元 772・戻り値破棄(AS の nes は値渡しで m0025 を書き換えない)
-      this.nes.ror(input.m0024); // 元 773・戻り値破棄
-    }
-    if (fd1.special1 === 44 || fd1.special2 === 44) { // 元 776-781・特殊能力44 自分の回復力アップ(×2)を装うブロック
-      this.nes.clc(); // 元 778
-      this.nes.asl(input.m0024); // 元 779・戻り値破棄
-      this.nes.rol(NaN); // 元 780 の `input.mm025` は元源码字の誤植(mm025≠m0025)。AS2 の int 型付き引数は undefined を NaN に coerce するため golden と同じ NaN 経路(js/nes.js の rol(NaN) は decbin8 が "00000NaN" を読み先頭の 2 進数字 00000 で 0 になる。m0025 は書き換わらない)
-    }
-
     var basic = (input.m0025 * 0x100) + input.m0024; // 元 783
+    // 実機BB2準拠: 特殊能力43(相手回復力ダウン×0.5)と特殊能力44(自分回復力アップ×2)を正常適用
+    if (fd2.special1 === 43 || fd2.special2 === 43) {
+      basic = Math.floor(basic / 2);
+    }
+    if (fd1.special1 === 44 || fd1.special2 === 44) {
+      basic = basic * 2;
+    }
     var hp_diff = fd1.max_hp - fd1.hp; // 元 784
     if (basic > hp_diff) {
       basic = hp_diff; // 元 785-787・hp_diff クランプ
@@ -727,17 +723,14 @@
     input.m001C = 0x0A; // 元 867
     input.m001D = 0x00; // 元 868
     this.barcode_world.dbcd(input); // 元 871・/10
-    if (fd2.special1 === 43 || fd2.special2 === 43) { // 元 873-878・basic_power の 43 ブロックと同じ癖(nes 呼び出し破棄でフラグだけ)
-      this.nes.clc(); // 元 875
-      this.nes.lsr(input.m0025); // 元 876
-      this.nes.ror(input.m0024); // 元 877
-    }
-    if (fd1.special1 === 44 || fd1.special2 === 44) { // 元 880-885・元 884 の `input.mm025` 誤植(basic_power 780 と同一の NaN 経路)
-      this.nes.clc(); // 元 882
-      this.nes.asl(input.m0024); // 元 883
-      this.nes.rol(NaN); // 元 884・golden と同じ NaN 経路
-    }
     var pp_power = (input.m0025 * 0x100) + input.m0024; // 元 887
+    // 実機BB2準拠: 特殊能力43(相手回復力ダウン×0.5)と特殊能力44(自分回復力アップ×2)を正常適用
+    if (fd2.special1 === 43 || fd2.special2 === 43) {
+      pp_power = Math.floor(pp_power / 2);
+    }
+    if (fd1.special1 === 44 || fd1.special2 === 44) {
+      pp_power = pp_power * 2;
+    }
     var hp_diff = fd1.max_hp - fd1.hp; // 元 888
     if (pp_power > hp_diff) {
       pp_power = hp_diff; // 元 889-891
