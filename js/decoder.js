@@ -94,38 +94,64 @@
     }
 
     if (barcode1_data) {
-      /* 同じバーコードは合体不可(80〜98) */
+      /* 同じバーコードは合体不可: 13桁は7〜12桁目(charAt(6..11))、8桁は2〜7桁目(charAt(1..6))の一致で判定 */
       var barcode_check, barcode_check1;
       if (barcode.length >= 13) {
         barcode_check = barcode.charAt(6) + barcode.charAt(7) + barcode.charAt(8) +
-          barcode.charAt(9) + barcode.charAt(10) + barcode.charAt(11) + barcode.charAt(12);
+          barcode.charAt(9) + barcode.charAt(10) + barcode.charAt(11);
       } else {
         barcode_check = barcode.charAt(1) + barcode.charAt(2) + barcode.charAt(3) +
-          barcode.charAt(4) + barcode.charAt(5) + barcode.charAt(6) + barcode.charAt(7);
+          barcode.charAt(4) + barcode.charAt(5) + barcode.charAt(6);
       }
       var barcode1 = barcode1_data.barcode;
       if (barcode1.length >= 13) {
         barcode_check1 = barcode1.charAt(6) + barcode1.charAt(7) + barcode1.charAt(8) +
-          barcode1.charAt(9) + barcode1.charAt(10) + barcode1.charAt(11) + barcode1.charAt(12);
+          barcode1.charAt(9) + barcode1.charAt(10) + barcode1.charAt(11);
       } else {
         barcode_check1 = barcode1.charAt(1) + barcode1.charAt(2) + barcode1.charAt(3) +
-          barcode1.charAt(4) + barcode1.charAt(5) + barcode1.charAt(6) + barcode1.charAt(7);
+          barcode1.charAt(4) + barcode1.charAt(5) + barcode1.charAt(6);
       }
       if (barcode_check === barcode_check1) { return false; }
 
+      var targetJob = barcode1_data.job;
+
+      /* 種別5〜8: 武器・防具 */
+      if (d.race >= 5 && d.race <= 8) {
+        /* 魔法使い(職業7〜9)は武器・防具不可 */
+        if (targetJob >= 7) { return false; }
+
+        /* 種別6(ST武器) / 種別8(DF防具)の装備制限 */
+        /* ※種別5(使い捨てST)・種別7(使い捨てDF)は実機挙動により戦士職0〜6なら誰でも使用可 */
+        if (d.race === 6 || d.race === 8) {
+          /* 種類1〜6: 職業と種類が一致時は使用不可 */
+          if (d.job >= 1 && d.job <= 6 && targetJob === d.job) {
+            return false;
+          }
+          /* 種類8: 職業0〜3なら使用可(4〜6は不可) */
+          if (d.job === 8 && targetJob > 3) {
+            return false;
+          }
+          /* 種類9: 職業3〜6なら使用可(0〜2は不可) */
+          if (d.job === 9 && targetJob < 3) {
+            return false;
+          }
+        }
+      }
+
+      /* 種別9: HPアイテム / 情報カード / 薬草アップ / MPアップ */
       if (d.race === 9) {
-        /* 情報カードは入力不可(c1_flag のみ)(101〜107) */
+        /* 情報カード(種類5, 6)は入力不可(c1_flag のみ可) */
         if (d.job === 5 || d.job === 6) {
           if (!c1_flag) { return false; }
         }
-        /* 戦士は MP アップ不可(110〜114) */
-        if (barcode1_data.job <= 6) {
-          if (d.job >= 8) { return false; }
+        /* MPアップ(種類8): 職業が7か9なら使用可 */
+        if (d.job === 8) {
+          if (targetJob !== 7 && targetJob !== 9) { return false; }
         }
-      }
-      /* 魔法使いは武器・防具は不可(118〜122) */
-      if (d.job >= 7) {
-        if (d.race >= 5 && d.race <= 8) { return false; }
+        /* MPアップ(種類9): 職業が8か9なら使用可 */
+        if (d.job === 9) {
+          if (targetJob !== 8 && targetJob !== 9) { return false; }
+        }
       }
     }
 
@@ -231,10 +257,12 @@
       d.mp = (d.job >= 6) ? 10 : 0;
     } else if (d.race >= 5 && d.race <= 6) {
       /* ST アイテム(274〜278) */
+      d.job = toInt(barcode.charAt(8));
       d.st = toInt(barcode.charAt(3) + barcode.charAt(4));
       if (d.special === 31 && Math.floor(Math.random() * 2) === 0) { d.st = 0 - d.st; }
     } else if (d.race >= 7 && d.race <= 8) {
       /* DF アイテム(280〜284) */
+      d.job = toInt(barcode.charAt(8));
       d.df = toInt(barcode.charAt(5) + barcode.charAt(6));
       if (d.special === 32 && Math.floor(Math.random() * 2) === 0) { d.df = 0 - d.df; }
     } else {
@@ -282,6 +310,7 @@
         d.pp = 5;
         d.mp = (d.job >= 6) ? 10 : 0;
       } else if (d.race >= 5 && d.race <= 6) {
+        d.job = toInt(barcode.charAt(5));
         if (toInt(barcode.charAt(10)) >= 5 && toInt(barcode.charAt(10)) <= 8) {
           d.st = toInt('1' + ((toInt(barcode.charAt(9)) + 5) % 10).toString());
         } else if (toInt(barcode.charAt(10)) === 3 || toInt(barcode.charAt(10)) === 4) {
@@ -290,6 +319,7 @@
           d.st = toInt('2' + ((toInt(barcode.charAt(9)) + 5) % 10).toString());
         }
       } else if (d.race >= 7 && d.race <= 8) {
+        d.job = toInt(barcode.charAt(5));
         if (toInt(barcode.charAt(9)) >= 3 && toInt(barcode.charAt(9)) <= 6) {
           d.df = (toInt(barcode.charAt(8)) + 7) % 10;
         } else if (toInt(barcode.charAt(9)) === 1 || toInt(barcode.charAt(9)) === 2) {
@@ -298,7 +328,7 @@
           d.df = toInt('1' + ((toInt(barcode.charAt(8)) + 7) % 10).toString());
         }
       } else {
-        d.job = 0;
+        d.job = toInt(barcode.charAt(5));
         d.hp = toInt(Math.floor(toInt(barcode.charAt(11)) / 8).toString() +
           barcode.charAt(10) + barcode.charAt(9));
       }
@@ -336,6 +366,7 @@
         d.pp = 5;
         d.mp = (d.job >= 6) ? 10 : 0;
       } else if (d.race >= 5 && d.race <= 6) {
+        d.job = toInt(barcode.charAt(0));
         if (toInt(barcode.charAt(5)) >= 5 && toInt(barcode.charAt(5)) <= 8) {
           d.st = toInt('1' + ((toInt(barcode.charAt(4)) + 5) % 10).toString());
         } else if (toInt(barcode.charAt(5)) === 3 || toInt(barcode.charAt(5)) === 4) {
@@ -344,6 +375,7 @@
           d.st = toInt('2' + ((toInt(barcode.charAt(4)) + 5) % 10).toString());
         }
       } else if (d.race >= 7 && d.race <= 8) {
+        d.job = toInt(barcode.charAt(0));
         if (toInt(barcode.charAt(4)) >= 3 && toInt(barcode.charAt(4)) <= 6) {
           d.df = (toInt(barcode.charAt(3)) + 7) % 10;
         } else if (toInt(barcode.charAt(4)) === 1 || toInt(barcode.charAt(4)) === 2) {
@@ -353,7 +385,7 @@
         }
       } else {
         /* 元 486 は toString 無しの int()+文字列連結。そのまま写す */
-        d.job = 0;
+        d.job = toInt(barcode.charAt(0));
         d.hp = toInt(Math.floor(toInt(barcode.charAt(6)) / 8) +
           barcode.charAt(5) + barcode.charAt(4));
       }
