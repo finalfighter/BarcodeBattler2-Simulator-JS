@@ -980,7 +980,8 @@
       var now = fc.now_player;
       var att = (now === 1) ? fd[0] : fd[1];         /* 3005 / 3011 */
       var def = (now === 1) ? fd[1] : fd[0];
-      var hasPp = att.pp > 0;                        /* 3006 / 3012 */
+      /* 実機仕様修正: F9 マミロージャ封印時(pp_ignore_flag)は薬草使用不可 */
+      var hasPp = att.pp > 0 && !att.pp_ignore_flag; /* 3006 / 3012 */
       if (hasPp) {
         fc.display_power = fc.basicPower(att, def, randIdxOverride, timingOverride);   /* 3007-3008 / 3013-3014 */
       }
@@ -1006,7 +1007,8 @@
       var now = fc.now_player;
       var att = (now === 1) ? fd[0] : fd[1];         /* 3150 / 3162 */
       var recovered = false;
-      if (att.pp > 0) {                              /* 3152 / 3165 */
+      /* 実機仕様修正: F9 マミロージャ封印時(pp_ignore_flag)は薬草回復無効 */
+      if (att.pp > 0 && !att.pp_ignore_flag) {       /* 3152 / 3165 */
         att.hp = att.hp + fc.display_power;          /* 3153 / 3166 */
         att.pp = att.pp - 1;                         /* 3154 / 3167 */
         fc.now_player = (now === 1) ? 2 : 1;         /* 3155 / 3168 */
@@ -1762,24 +1764,29 @@
       var isW = (s.friendSelectState === 1);
       switch (sp) {                                    /* 6512-6671 */
         case 65:
-          if (isW) { c2[4].hp += 1; c2[4].pp += 5; }
-          else { c2[5].hp += 1; c2[5].pp += 5; c2[5].mp += 5; }
-          break;
-        case 66:
-          if (isW) { c2[4].hp += 3; c2[4].pp += 5; }
-          else { c2[5].hp += 3; c2[5].pp += 5; c2[5].mp += 5; }
-          break;
-        case 67:
-          if (isW) { c2[4].hp += 4; c2[4].pp += 5; }
-          else { c2[5].hp += 4; c2[5].pp += 5; c2[5].mp += 5; }
-          break;
-        case 68:
-          if (isW) { c2[4].hp += 5; c2[4].pp += 5; }
-          else { c2[5].hp += 5; c2[5].pp += 5; c2[5].mp += 5; }
-          break;
-        case 69:
+          /* 実機仕様修正(書き込み107): 内部HPは1単位=100。HP+1000 は hp += 10 (元バグは +1) */
           if (isW) { c2[4].hp += 10; c2[4].pp += 5; }
           else { c2[5].hp += 10; c2[5].pp += 5; c2[5].mp += 5; }
+          break;
+        case 66:
+          /* 実機仕様修正(書き込み107): HP+3000 は hp += 30 (元バグは +3) */
+          if (isW) { c2[4].hp += 30; c2[4].pp += 5; }
+          else { c2[5].hp += 30; c2[5].pp += 5; c2[5].mp += 5; }
+          break;
+        case 67:
+          /* 実機仕様修正(書き込み107): HP+4000 は hp += 40 (元バグは +4) */
+          if (isW) { c2[4].hp += 40; c2[4].pp += 5; }
+          else { c2[5].hp += 40; c2[5].pp += 5; c2[5].mp += 5; }
+          break;
+        case 68:
+          /* 実機仕様修正(書き込み107): HP+5000 は hp += 50 (元バグは +5) */
+          if (isW) { c2[4].hp += 50; c2[4].pp += 5; }
+          else { c2[5].hp += 50; c2[5].pp += 5; c2[5].mp += 5; }
+          break;
+        case 69:
+          /* 実機仕様修正(書き込み107): HP+10000 は hp += 100 (元バグは +10) */
+          if (isW) { c2[4].hp += 100; c2[4].pp += 5; }
+          else { c2[5].hp += 100; c2[5].pp += 5; c2[5].mp += 5; }
           break;
         case 70:
           if (isW) { c2[4].st += 2; c2[4].pp += 5; }

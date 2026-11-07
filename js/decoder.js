@@ -63,6 +63,7 @@
       post_read_flag = true;
       this.post_reading(shift);
     }
+    this.post_read_flag = post_read_flag;
 
     if (count === 1) {
       /* 1枚目はアイテム不可(35〜37) */
@@ -167,11 +168,17 @@
       if (toInt(barcode.charAt(7)) >= 0 && toInt(barcode.charAt(7)) <= 4) {
         return true;
       } else {
-        /* 前読みとして読んだ場合 HP5000、ST1900、DF1900 以下の場合は 5-9 でも前読み(187〜194) */
-        var hp = toInt(barcode.charAt(0) + barcode.charAt(1) + barcode.charAt(2));
+        /* 実機仕様修正(書き込み105): アイテム種族ごとの前読み判定。STアイテム(5,6)はST<=1900、DFアイテム(7,8)はDF<=1900、HPアイテム(9)は前読み */
+        var race = toInt(barcode.charAt(7));
         var st = toInt(barcode.charAt(3) + barcode.charAt(4));
         var df = toInt(barcode.charAt(5) + barcode.charAt(6));
-        if (hp <= 50 && st <= 19 && df <= 19) { return true; }
+        if (race >= 5 && race <= 6) {
+          return st <= 19;
+        } else if (race >= 7 && race <= 8) {
+          return df <= 19;
+        } else if (race === 9) {
+          return true;
+        }
         return false;
       }
     } else {
@@ -196,21 +203,24 @@
 
       if (d.race === 0 && d.hp >= 200) {
         check_stdf = toInt(barcode.charAt(3) + barcode.charAt(4));
-        if (check_stdf === 13 || check_stdf === 29 || check_stdf === 45 ||
-            check_stdf === 61 || check_stdf === 77 || check_stdf === 93) {
+        /* 実機仕様修正: 元 AS3 版は 13,29,45,61,77,93 だったが、実機仕様 (14)+(16*0〜5) の 14,30,46,62,78,94 に修正 */
+        if (check_stdf === 14 || check_stdf === 30 || check_stdf === 46 ||
+            check_stdf === 62 || check_stdf === 78 || check_stdf === 94) {
           d.st += 100; d.df += 100;
         }
         d.st += 100;
-        if (d.st > 256) { d.st -= 255; }
+        /* 実機仕様修正(書き込み106): 6502 CPU 8bit wrap (modulo 256)。256以上は -25600 (-256) */
+        if (d.st >= 256) { d.st -= 256; }
       } else if (d.race === 1 && d.hp >= 200) {
         check_stdf = toInt(barcode.charAt(5) + barcode.charAt(6));
-        if (check_stdf === 13 || check_stdf === 29 || check_stdf === 45 ||
-            check_stdf === 61 || check_stdf === 77 || check_stdf === 93) {
+        /* 実機仕様修正: 元 AS3 版は 13,29,45,61,77,93 だったが、実機仕様 (14)+(16*0〜5) の 14,30,46,62,78,94 に修正 */
+        if (check_stdf === 14 || check_stdf === 30 || check_stdf === 46 ||
+            check_stdf === 62 || check_stdf === 78 || check_stdf === 94) {
           d.st += 100; d.df += 100;
         }
         d.df += 100;
-        /* 元 250 行は「df の再計算で st を参照している」。そのまま写す */
-        if (d.df > 256) { d.df = d.st - 255; }
+        /* 実機仕様修正(書き込み106): 元 AS3 版は st 参照バグかつ -255 だったが、実機仕様(8bit modulo 256)通り df -= 256 に修正 */
+        if (d.df >= 256) { d.df -= 256; }
       } else if (d.race === 2 && d.hp >= 200) {
         d.st += 100; d.df += 100;
       }
@@ -321,9 +331,10 @@
         d.df = toInt(tmpdf.toString() + tmpdf2.toString());
 
         d.speed = toInt(barcode.charAt(5));
-        d.job = 4;
+        /* 実機仕様修正: 元 AS3 版は job=4 固定だったが、実機仕様書通り「先頭の値 (barcode.charAt(0))」に修正 */
+        d.job = toInt(barcode.charAt(0));
         d.pp = 5;
-        d.mp = 0;
+        d.mp = (d.job >= 6) ? 10 : 0;
       } else if (d.race >= 5 && d.race <= 6) {
         if (toInt(barcode.charAt(5)) >= 5 && toInt(barcode.charAt(5)) <= 8) {
           d.st = toInt('1' + ((toInt(barcode.charAt(4)) + 5) % 10).toString());

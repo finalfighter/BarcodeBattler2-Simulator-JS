@@ -869,7 +869,8 @@
 
     // 元 1070・敵 MAXHP が 20% を切ったとき
     if ((this.fighting_data[1].hp / this.fighting_data[1].max_hp) < 0.2) {
-      if (this.fighting_data[1].pp > 0) { // 元 1071
+      /* 実機仕様修正: F9 マミロージャ封印時(pp_ignore_flag)は薬草使用不可(元バグは pp_ignore_flag を見ずに回復していた) */
+      if (this.fighting_data[1].pp > 0 && !this.fighting_data[1].pp_ignore_flag) { // 元 1071
         if (rand > 50) {
           return 11; // 元 1073-1074・50% の確率で回復
         }

@@ -4324,6 +4324,17 @@
       if (this.el.toolbar_cards_toggle) {
         this.el.toolbar_cards_toggle.classList.toggle('active', !this.cardsCollapsed);
       }
+      /* CSS キャッシュ残存時でも確実に開閉するインラインフォールバック */
+      var browser = document.getElementById('card_browser');
+      var expandBtn = this.el.btn_cards_expand || document.getElementById('btn_cards_expand');
+      if (browser) {
+        browser.style.transform = this.cardsCollapsed ? 'translateX(100%)' : '';
+        browser.style.opacity = this.cardsCollapsed ? '0' : '';
+        browser.style.pointerEvents = this.cardsCollapsed ? 'none' : '';
+      }
+      if (expandBtn) {
+        expandBtn.style.display = this.cardsCollapsed ? 'block' : 'none';
+      }
     },
 
     setShowDebug: function (show) {
@@ -4341,6 +4352,7 @@
     syncShowDebug: function () {
       if (this.el.dev_note) {
         this.el.dev_note.hidden = !this.showDebug;
+        this.el.dev_note.style.display = this.showDebug ? 'flex' : 'none';
       }
       if (this.el.debug_checkbox) {
         this.el.debug_checkbox.checked = this.showDebug;

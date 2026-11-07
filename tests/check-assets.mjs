@@ -13,7 +13,8 @@ const html = readFileSync(resolve(root, 'index.html'), 'utf8');
 for (const m of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
   const p = m[1];
   if (!p || p.startsWith('http') || p.startsWith('#')) continue;
-  paths.add(resolve(root, p));
+  const cleanPath = p.split('?')[0];
+  paths.add(resolve(root, cleanPath));
 }
 
 const css = readFileSync(resolve(root, 'css/style.css'), 'utf8');

@@ -856,7 +856,11 @@ assert.equal(dShift.df, 21, 'shift=-2 DF');
     s.fightingData[1].hp = 10;
     s.fightingData[1].max_hp = 100;
     s.fightingData[1].pp = 1;
-    assert.equal(State.autoBattleCpu(s, 60, 50).action, 11, '1070-1075 hp<20% & pp>0 & rand>50 -> 11(power)');
+    /* 実機仕様修正: L4でF9(マミロージャ)を受けた敵(pp_ignore_flag=true)は薬草(11)を使えず攻撃(10)になる */
+    assert.equal(State.autoBattleCpu(s, 60, 50).action, 10, 'F9マミロージャ封印中はhp<20%でも薬草を使えず10(battle)');
+    /* pp_ignore_flag を解除すると、通常通り 11(power) を使用する */
+    s.fightingData[1].pp_ignore_flag = false;
+    assert.equal(State.autoBattleCpu(s, 60, 50).action, 11, '1070-1075 未封印時は hp<20% & pp>0 & rand>50 -> 11(power)');
     assert.equal(State.autoBattleCpu(s, 30, 50).action, 10, '1082-1083 rand<70 -> 10(battle)');
     s.fightingData[0].df = 5;
     s.fightingData[1].mp = 10;
@@ -1016,7 +1020,7 @@ assert.equal(dShift.df, 21, 'shift=-2 DF');
     assert.equal(ses2.action, 'start_battle_get', '6469-6480 back to battle_get');
     assert.equal(ses2.canSelect, false, '6473 select disabled after 1 recovery');
 
-    /* O4: getMpPp(6497-6709) — special=66(HP+3, PP+5, 魔法使いは MP+5) */
+    /* O4: getMpPp(6497-6709) — special=66(実機仕様HP+3000(内部+30), PP+5, 魔法使いは MP+5) */
     s.barcodeDataC2[6].special = 66;
     const hpBeforeGet = s.barcodeDataC2[5].hp;
     const ppBeforeGet = s.barcodeDataC2[5].pp;
@@ -1024,7 +1028,7 @@ assert.equal(dShift.df, 21, 'shift=-2 DF');
     const gmp = State.getMpPp(s);
     assert.equal(gmp.timerDelay, 100, '6704 timerDelay=100');
     assert.equal(gmp.timerRepeat, 20, '6704 timerRepeat=20');
-    assert.equal(s.barcodeDataC2[5].hp, hpBeforeGet + 3, '6529 hp+3');
+    assert.equal(s.barcodeDataC2[5].hp, hpBeforeGet + 30, '実機仕様修正: special=66 は HP+3000 (内部+30、元AS3バグは+3)');
     assert.equal(s.barcodeDataC2[5].pp, ppBeforeGet + 5, '6530 pp+5');
     assert.equal(s.barcodeDataC2[5].mp, mpBeforeGet + 5, '6531 mp+5');
 
