@@ -84,37 +84,50 @@ class AS3_BarcodeRead_Oracle {
     }
 
     if (barcode1_data) {
+      /* 同じバーコードは合体不可: 13桁は7〜12桁目、8桁は2〜7桁目の一致で判定 */
       let barcode_check, barcode_check1;
       if (barcode.length >= 13) {
         barcode_check = barcode.charAt(6) + barcode.charAt(7) + barcode.charAt(8) +
-          barcode.charAt(9) + barcode.charAt(10) + barcode.charAt(11) + barcode.charAt(12);
+          barcode.charAt(9) + barcode.charAt(10) + barcode.charAt(11);
       } else {
         barcode_check = barcode.charAt(1) + barcode.charAt(2) + barcode.charAt(3) +
-          barcode.charAt(4) + barcode.charAt(5) + barcode.charAt(6) + barcode.charAt(7);
+          barcode.charAt(4) + barcode.charAt(5) + barcode.charAt(6);
       }
 
       const b1 = barcode1_data.barcode;
       if (b1.length >= 13) {
         barcode_check1 = b1.charAt(6) + b1.charAt(7) + b1.charAt(8) +
-          b1.charAt(9) + b1.charAt(10) + b1.charAt(11) + b1.charAt(12);
+          b1.charAt(9) + b1.charAt(10) + b1.charAt(11);
       } else {
         barcode_check1 = b1.charAt(1) + b1.charAt(2) + b1.charAt(3) +
-          b1.charAt(4) + b1.charAt(5) + b1.charAt(6) + b1.charAt(7);
+          b1.charAt(4) + b1.charAt(5) + b1.charAt(6);
       }
 
       if (barcode_check === barcode_check1) return false;
 
+      const targetJob = barcode1_data.job;
+
+      /* 種別5〜8: 武器・防具 */
+      if (d.race >= 5 && d.race <= 8) {
+        if (targetJob >= 7) return false;
+        if (d.race === 6 || d.race === 8) {
+          if (d.job >= 1 && d.job <= 6 && targetJob === d.job) return false;
+          if (d.job === 8 && targetJob > 3) return false;
+          if (d.job === 9 && targetJob < 3) return false;
+        }
+      }
+
+      /* 種別9: HPアイテム / 情報カード / 薬草アップ / MPアップ */
       if (d.race === 9) {
         if (d.job === 5 || d.job === 6) {
           if (!c1_flag) return false;
         }
-        if (barcode1_data.job <= 6) {
-          if (d.job >= 8) return false;
+        if (d.job === 8) {
+          if (targetJob !== 7 && targetJob !== 9) return false;
         }
-      }
-
-      if (d.job >= 7) {
-        if (d.race >= 5 && d.race <= 8) return false;
+        if (d.job === 9) {
+          if (targetJob !== 8 && targetJob !== 9) return false;
+        }
       }
     }
 
@@ -213,9 +226,11 @@ class AS3_BarcodeRead_Oracle {
       d.pp = 5;
       d.mp = (d.job >= 6) ? 10 : 0;
     } else if (d.race >= 5 && d.race <= 6) {
+      d.job = this.toInt(barcode.charAt(8));
       d.st = this.toInt(barcode.charAt(3) + barcode.charAt(4));
       if (d.special === 31 && Math.floor(this.rand() * 2) === 0) d.st = 0 - d.st;
     } else if (d.race >= 7 && d.race <= 8) {
+      d.job = this.toInt(barcode.charAt(8));
       d.df = this.toInt(barcode.charAt(5) + barcode.charAt(6));
       if (d.special === 32 && Math.floor(this.rand() * 2) === 0) d.df = 0 - d.df;
     } else {
@@ -262,6 +277,7 @@ class AS3_BarcodeRead_Oracle {
         d.pp = 5;
         d.mp = (d.job >= 6) ? 10 : 0;
       } else if (d.race >= 5 && d.race <= 6) {
+        d.job = this.toInt(barcode.charAt(5));
         const c10 = this.toInt(barcode.charAt(10));
         const c9 = this.toInt(barcode.charAt(9));
         if (c10 >= 5 && c10 <= 8) {
@@ -272,6 +288,7 @@ class AS3_BarcodeRead_Oracle {
           d.st = this.toInt('2' + ((c9 + 5) % 10).toString());
         }
       } else if (d.race >= 7 && d.race <= 8) {
+        d.job = this.toInt(barcode.charAt(5));
         const c9 = this.toInt(barcode.charAt(9));
         const c8 = this.toInt(barcode.charAt(8));
         if (c9 >= 3 && c9 <= 6) {
@@ -282,7 +299,7 @@ class AS3_BarcodeRead_Oracle {
           d.df = this.toInt('1' + ((c8 + 7) % 10).toString());
         }
       } else {
-        d.job = 0;
+        d.job = this.toInt(barcode.charAt(5));
         d.hp = this.toInt(Math.floor(this.toInt(barcode.charAt(11)) / 8).toString() +
           barcode.charAt(10) + barcode.charAt(9));
       }
@@ -321,6 +338,7 @@ class AS3_BarcodeRead_Oracle {
         d.pp = 5;
         d.mp = (d.job >= 6) ? 10 : 0;
       } else if (d.race >= 5 && d.race <= 6) {
+        d.job = this.toInt(barcode.charAt(0));
         const c5 = this.toInt(barcode.charAt(5));
         const c4 = this.toInt(barcode.charAt(4));
         if (c5 >= 5 && c5 <= 8) {
@@ -331,6 +349,7 @@ class AS3_BarcodeRead_Oracle {
           d.st = this.toInt('2' + ((c4 + 5) % 10).toString());
         }
       } else if (d.race >= 7 && d.race <= 8) {
+        d.job = this.toInt(barcode.charAt(0));
         const c4 = this.toInt(barcode.charAt(4));
         const c3 = this.toInt(barcode.charAt(3));
         if (c4 >= 3 && c4 <= 6) {
@@ -341,7 +360,7 @@ class AS3_BarcodeRead_Oracle {
           d.df = this.toInt('1' + ((c3 + 7) % 10).toString());
         }
       } else {
-        d.job = 0;
+        d.job = this.toInt(barcode.charAt(0));
         d.hp = this.toInt(Math.floor(this.toInt(barcode.charAt(6)) / 8) +
           barcode.charAt(5) + barcode.charAt(4));
       }
