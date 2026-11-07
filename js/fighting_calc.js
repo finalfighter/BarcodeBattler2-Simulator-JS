@@ -323,7 +323,9 @@
       input.m001D = 0x00;
       this.barcode_world.dbcd(input); // HP÷0x53(元 352)
       this.nes.sec(); // 元 353
-      speed_add = this.nes.sbc(fd1.speed, input.m0024); // 元 354
+      // 実機BB2仕様: 4bitマイコンのため減算で負になっても8bitアンダーフロー(256補数による必中バグ)せず0にクランプ
+      var diff = fd1.speed - input.m0024;
+      speed_add = (diff < 0) ? 0 : diff;
     }
 
     speed_init = 0xCC; // 元 357
