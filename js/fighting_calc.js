@@ -619,8 +619,17 @@
     return false;
   };
 
-  // 基本パワー算出(718-789: 乱数 rand(1-7) と timing(10-14) の積で HP/10 を掛け /10・AS 元の 43/44 分岐は戻り値破棄で実質フラグ変化のみ)
+  // 基本パワー算出(718-789: 乱数 rand(1-7) と timing(10-14) の積で HP/10 を掛け /10)
   FightingCalc.prototype.basicPower = function (fd1, fd2, randIdxOverride, timingOverride) {
+    var hp_diff = fd1.max_hp - fd1.hp;
+    // 実機BB2仕様: パワーコマンドで一定確率(約10%)または 'full'/5 指定で全回復
+    if (randIdxOverride === 'full' || randIdxOverride === 5) {
+      return hp_diff;
+    }
+    if (randIdxOverride === undefined && Math.random() < 0.1) {
+      return hp_diff;
+    }
+
     var rand = this.power_rand_table[randIdxOverride === undefined ? Math.floor(Math.random() * 5) : randIdxOverride]; // 元 721・乱数=1,2,3,5,7
     var timing01 = (timingOverride === undefined) ? Math.floor(Math.random() * 2) : timingOverride; // 元 724(Math.floor(Math.random()*2))
     var timing = (timing01 === 1) ? 0x0E : 0x0A; // 元 725/727
