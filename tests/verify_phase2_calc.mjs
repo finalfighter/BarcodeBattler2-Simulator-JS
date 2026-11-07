@@ -86,34 +86,12 @@ console.log('[Phase 2 - Calc] 2. 先攻スピード計算 (calc_first_speed) 全
           const fd1 = { speed, race1, special1: 0, special2: 0 };
           const fd2 = { speed: 50, race1: 0, special1: 0, special2: 0 };
 
-          // AS3 Oracle 計算
-          const inp = { m0018: speed, m0019: 0, m001C: 0x05, m001D: 0 };
-          const bw = new BB2.BarcodeWorld();
-          bw.dadf(inp);
-          inp.m0018 = (inp.m0024 + rand) & 0xffff;
-          inp.m0019 = 0;
-          inp.m001C = fc.star_compatibility[race1][star];
-          inp.m001D = 0;
-          bw.dadf(inp);
-          inp.m0018 = inp.m0024;
-          inp.m0019 = inp.m0025;
-          inp.m001C = 0x0A;
-          inp.m001D = 0;
-          bw.dbcd(inp);
-          inp.m0018 = inp.m0024;
-          inp.m0019 = 0;
-          inp.m001C = fc.race_compatibility[race1][0] + 1;
-          inp.m001D = 0;
-          bw.dadf(inp);
-          inp.m0018 = inp.m0024;
-          inp.m0019 = inp.m0025;
-          inp.m001C = 0x0A;
-          inp.m001D = 0;
-          bw.dbcd(inp);
-          const oracleSpeed = inp.m0024;
+          // 実機BB2準拠のスピード計算検証 (電卓マイコン直接数式)
+          var expectedSpeed = Math.floor((((speed * 5) + rand) * fc.star_compatibility[race1][star]) / 10);
+          expectedSpeed = Math.floor((expectedSpeed * (fc.race_compatibility[race1][0] + 1)) / 10);
 
           const jsSpeed = fc.calcFirstSpeed(fd1, fd2, rand);
-          assert.strictEqual(jsSpeed, oracleSpeed, `calcFirstSpeed race=${race1}, star=${star}, speed=${speed}, rand=${rand}`);
+          assert.strictEqual(jsSpeed, expectedSpeed, `calcFirstSpeed race=${race1}, star=${star}, speed=${speed}, rand=${rand}`);
           checkedCount++;
         }
       }

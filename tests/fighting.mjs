@@ -185,8 +185,9 @@ const fc = new BB2.FightingCalc();
 assert.equal(fc.calcFirstSpeed({ speed: 20, race1: 0, special1: 0 }, { speed: 10, race1: 0, special1: 0 }, 4),
   136, 'calc_first_speed(speed20,race0,star0,rand4)');
 fc.protection_star = 2;
+// 実機BB2準拠の直接数式(55*5=275, +8=283, *10/10=283, *11/10=311, +50=361。旧AS3/NESの256オーバーフロー19化バグ破棄)
 assert.equal(fc.calcFirstSpeed({ speed: 55, race1: 4, special1: 37 }, { speed: 10, race1: 4, special1: 0 }, 8),
-  80, 'calc_first_speed(speed55,race4,special37,star2,rand8)');
+  361, 'calc_first_speed(speed55,race4,special37,star2,rand8)');
 fc.protection_star = 0;
 
 const mkfd2 = () => ({ st1: 30, st2: 0, st: 30, df1: 30, df2: 0, df: 30, hp: 300, max_hp: 300,
@@ -241,7 +242,8 @@ for (const [sp, kw, expected] of [
   assert.equal(fc.basicDamage({ st: 5, race1: 0, union_flag: false }, { df: 150, race1: 0, union_flag: false, race2: 0 }, [0, 1]), 2, 'basic_damage(DF150≥で最低 1・timing×2)');
 
   assert.equal(fc.specialMulti({ special1: 17, special2: 0 }, { special1: 20, special2: 0, job: 9, race1: 9 }, 100), 135, 'special_multi(17 倍剣→fd2 special1=20 盾 0.9x)');
-  assert.equal(fc.specialMulti({ special1: 10, special2: 0 }, { special1: 0, special2: 21, job: 0, race1: 1 }, 200), 421, 'special_multi(10 職業一致 3 倍剣→fd2 special2=21 盾・AS wrap の癖で 421');
+  // 実機BB2準拠: 200 * 3(3倍剣) * 0.7(盾50%UP) = 420 (旧AS3バイナリラップバグ421を破棄)
+  assert.equal(fc.specialMulti({ special1: 10, special2: 0 }, { special1: 0, special2: 21, job: 0, race1: 1 }, 200), 420, 'special_multi(10 職業一致 3 倍剣→fd2 special2=21 盾 0.7x = 420)');
   assert.equal(fc.specialMulti({ special1: 16, special2: 18 }, { special1: 0, special2: 0, job: 9, race1: 9 }, 999), 998, 'special_multi(16 で 0.5x シフト→18 で 2.0x・clamp 999 未満の 998');
   assert.equal(fc.specialMulti({ special1: 0, special2: 0 }, { special1: 0, special2: 0, job: 9, race1: 9 }, 300, 15), 450, 'special_multi(magic_rate=15・300→450');
 
@@ -291,10 +293,12 @@ for (const [sp, kw, expected] of [
     'use_pp_power(2個使用・HP200×4/10=80 → hp_diff 50 clamp');
   assert.equal(fc.usePpPower({ max_hp: 200, hp: 150, special1: 0, special2: 0 }, { special1: 0, special2: 0 }, 1), 40,
     'use_pp_power(1個使用・HP200×2/10=40');
-  assert.equal(fc.usePpPower({ max_hp: 200, hp: 100, special1: 0, special2: 0 }, { special1: 43, special2: 0 }, 1), 40,
-    'use_pp_power(fd2 special43・nes 呼び出し破棄で値不変 40');
-  assert.equal(fc.usePpPower({ max_hp: 100, hp: 50, special1: 44, special2: 0 }, { special1: 0, special2: 0 }, 2), 40,
-    'use_pp_power(fd1 special44・元 884 mm025 誤植 NaN 経路で値不変 40');
+  // 実機BB2準拠: 特殊能力43(相手回復力半減)で 40 / 2 = 20
+  assert.equal(fc.usePpPower({ max_hp: 200, hp: 100, special1: 0, special2: 0 }, { special1: 43, special2: 0 }, 1), 20,
+    'use_pp_power(fd2 special43・実機BB2準拠で半減適用 20)');
+  // 実機BB2準拠: 特殊能力44(自分回復力2倍)で 40 * 2 = 80 → hp_diff(50)クランプで 50
+  assert.equal(fc.usePpPower({ max_hp: 100, hp: 50, special1: 44, special2: 0 }, { special1: 0, special2: 0 }, 2), 50,
+    'use_pp_power(fd1 special44・実機BB2準拠で2倍適用・hp_diff 50 クランプ)');
 
   assert.equal(fc.calcF0({ mp: 9 }, 4), 4, 'calc_f0(rand4・fd2 mp9 → 4');
   assert.equal(fc.calcF0({ mp: 3 }, 6), 3, 'calc_f0(rand6・fd2 mp3 超え → mp 合わせ 3');
