@@ -960,13 +960,13 @@ assert.equal(dShift.df, 21, 'shift=-2 DF');
     State.friendAnimationC2Complete(s);
     assert.equal(s.c2ItemWaitActive, true, '5892-5897 c2ItemWaitActive=true');
 
-    const dfBeforeItem = s.barcodeDataC2[5].df;
-    const itemRes = State.cardItemInsertC2(s, '49012347'); /* DF アイテム(df=28)合体 */
+    const hpBeforeItem = s.barcodeDataC2[5].hp;
+    const itemRes = State.cardItemInsertC2(s, '49012309'); /* HP アイテム(hp=32)合体(魔法使い可) */
     assert.equal(itemRes.ok, true, '6032 item merge ok');
-    assert.equal(s.barcodeDataC2[7].df, 28, '6036 item df in barcodeDataC2[7]');
+    assert.equal(s.barcodeDataC2[7].hp, 32, '6036 item hp in barcodeDataC2[7]');
     const nextC2_4 = State.cardInsertNextC2(s);
     assert.equal(nextC2_4.nextState, State.STATES.CARDS_DONE, '5025 bb2_state=8');
-    assert.equal(s.fightingData[0].df, dfBeforeItem + 28, '5039 fightingData[0] merges hero + barcodeDataC2[7]');
+    assert.equal(s.fightingData[0].hp, hpBeforeItem + 32, '5039 fightingData[0] merges hero + barcodeDataC2[7]');
 
     /* --- O. 工程6-3: C2 戦闘終了・戦利品獲得・戦闘後薬草/魔法回復・パスコード表示(2243-2295, 6064-6858) --- */
     /* O1: 敵撃破時の callBattleEnd(2245-2295) → battleEndC2(6780-6810) */
