@@ -188,11 +188,19 @@ console.log('[Phase 2 - Calc] 5. 基本ダメージ計算 (basic_damage) 相性�
   assert.ok(dmg2 > 0, `basic_damage 2P: ${dmg2}`);
   checkedCount++;
 
-  // 相手が合体時の相性ボーナス (/4, /3, /2)
+  // 攻撃側合体時の相性ボーナス/ペナルティ (/4, /3, /2) および 2P 実機バグ検証
+  // 1P 攻撃時: 2枚目が種族1 (相性50%) なら除数 4
   fc.now_player = 1;
-  const p2_union = { st: 60, df: 30, race1: 1, union_flag: true, race2: 1 };
-  const dmg_union = fc.basicDamage(p1, p2_union, [2, 0]);
-  assert.ok(dmg_union > 0, `basic_damage vs union: ${dmg_union}`);
+  const p1_union50 = { st: 80, df: 40, race1: 0, union_flag: true, race2: 1 };
+  const dmg_union50 = fc.basicDamage(p1_union50, p2, [2, 0]);
+  assert.ok(dmg_union50 > 0, `basic_damage 1P union 50%: ${dmg_union50}`);
+  checkedCount++;
+
+  // 2P 攻撃時: 実機バグにより 2枚目が種族1 (相性50%) でも除数 2 (100%固定)
+  fc.now_player = 2;
+  const p2_union_bug = { st: 80, df: 40, race1: 0, union_flag: true, race2: 1 };
+  const dmg_union_bug = fc.basicDamage(p2_union_bug, p2, [2, 0]);
+  assert.ok(dmg_union_bug > dmg_union50, `2P union bug fixed to 100% (dmg: ${dmg_union_bug} > ${dmg_union50})`);
   checkedCount++;
 }
 

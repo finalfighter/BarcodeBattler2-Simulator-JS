@@ -216,34 +216,28 @@
     var diff = st_base - fd2.df;
     var basic_damage;
 
-    // 1P かつ相手が合体(合体相性 50%/75%/100%)
-    if (this.now_player === 1 && fd2.union_flag) {
-      var race = fd1.union_flag ? fd2.race1 : fd1.race1;
-      var divisor;
-      if (race === 0 || race === 1) {
+    // 実機仕様・合体相性除数(gattai.txt / さき氏解析準拠):
+    // 攻撃側(自キャラ fd1)が合体している場合、自キャラ2枚目の種族(fd1.race2)によって除数が変化。
+    // ※実機バグ: R側(2P, now_player === 2)は合体していても種族に関わらず常に除数2(100%固定)。
+    //   除数4(50%) / 除数3(75%) のペナルティを受けるのは L側(1P, now_player === 1) のみ。
+    var divisor = 2; // デフォルト(非合体・合体100%・2P側攻撃時)
+    if (this.now_player === 1 && fd1.union_flag) {
+      if (fd1.race2 === 0 || fd1.race2 === 1) {
         divisor = 4; // 50%
-      } else if (race === 2) {
+      } else if (fd1.race2 === 2) {
         divisor = 3; // 75%
       } else {
         divisor = 2; // 100%
       }
-
-      // 実機BB2合体時ダメージ計算パイプライン:
-      // 除数 → 種族相性 → +1 → 守護星相性 (page16実機データ 19,200 完全一致)
-      var v = Math.floor(diff / divisor);
-      v = Math.floor((v * this.race_compatibility[fd1.race1][fd2.race1]) / 10);
-      v = v + 1;
-      v = Math.floor((v * this.star_compatibility[fd1.race1][this.protection_star]) / 10);
-      basic_damage = v;
-
-    } else {
-      // 通常(非合体)時
-      var v = Math.floor(diff / 2);
-      v = Math.floor((v * this.star_compatibility[fd1.race1][this.protection_star]) / 10);
-      v = Math.floor((v * this.race_compatibility[fd1.race1][fd2.race1]) / 10);
-      v = v + 1;
-      basic_damage = v;
     }
+
+    // 実機BB2ダメージ計算パイプライン:
+    // 除数 → 種族相性 → +1 → 守護星相性 (gattai.txt / damage_calc.txt 実測データ完全一致)
+    var v = Math.floor(diff / divisor);
+    v = Math.floor((v * this.race_compatibility[fd1.race1][fd2.race1]) / 10);
+    v = v + 1;
+    v = Math.floor((v * this.star_compatibility[fd1.race1][this.protection_star]) / 10);
+    basic_damage = v;
 
     var timing = (Array.isArray(randOverride)) ? randOverride[1] + 1 : Math.floor(Math.random() * 2) + 1;
     return basic_damage * timing;
