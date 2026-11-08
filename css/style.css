@@ -294,6 +294,42 @@ body.cards-collapsed .card-expand-tab {
 }
 .card-category-scroll {
   height: 95px;
+  min-height: 45px;
+  max-height: 360px;
+}
+
+/* カテゴリとカード選択間のリサイザー (スプリッター) */
+.card-section-resizer {
+  height: 9px;
+  margin: -1px 0;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+  user-select: none;
+  touch-action: none;
+  border-radius: 3px;
+  transition: background-color 0.15s ease;
+}
+.card-section-resizer::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 3px;
+  border-radius: 2px;
+  background-color: #cbd5e1;
+  transition: background-color 0.15s ease, width 0.15s ease;
+}
+.card-section-resizer:hover,
+.card-section-resizer.is-dragging {
+  background-color: rgba(9, 105, 218, 0.12);
+}
+.card-section-resizer:hover::after,
+.card-section-resizer.is-dragging::after {
+  background-color: #0969da;
+  width: 52px;
 }
 
 /* カード名テーブルの高さ (残り領域を埋め、縦に収まる) */

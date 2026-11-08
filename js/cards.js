@@ -564,6 +564,75 @@
       renderCardList(parseCardsXml(xmlText));
     });
 
+    /* --- CATEGORY と CARDS 間のドラッグリサイズ初期化 --- */
+    (function initCardListResizer() {
+      var resizer = document.getElementById('card_list_resizer');
+      var categoryScroll = document.querySelector('.card-category-scroll');
+      if (!resizer || !categoryScroll) return;
+
+      /* 保存された高さがあれば復元 */
+      try {
+        var savedHeight = localStorage.getItem('bb2_category_scroll_height');
+        if (savedHeight) {
+          var h = parseInt(savedHeight, 10);
+          if (!isNaN(h) && h >= 45 && h <= 360) {
+            categoryScroll.style.height = h + 'px';
+          }
+        }
+      } catch (e) {}
+
+      var startY = 0;
+      var startHeight = 0;
+      var isDragging = false;
+
+      function onPointerMove(ev) {
+        if (!isDragging) return;
+        var deltaY = ev.clientY - startY;
+        var newHeight = Math.round(startHeight + deltaY);
+        if (newHeight < 45) newHeight = 45;
+        if (newHeight > 360) newHeight = 360;
+        categoryScroll.style.height = newHeight + 'px';
+      }
+
+      function onPointerUp(ev) {
+        if (!isDragging) return;
+        isDragging = false;
+        try {
+          resizer.releasePointerCapture(ev.pointerId);
+        } catch (e) {}
+        resizer.classList.remove('is-dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+
+        try {
+          var finalH = parseInt(categoryScroll.style.height, 10);
+          if (!isNaN(finalH)) {
+            localStorage.setItem('bb2_category_scroll_height', String(finalH));
+          }
+        } catch (e) {}
+      }
+
+      resizer.addEventListener('pointerdown', function (ev) {
+        ev.preventDefault();
+        isDragging = true;
+        startY = ev.clientY;
+        startHeight = categoryScroll.getBoundingClientRect().height;
+        try {
+          resizer.setPointerCapture(ev.pointerId);
+        } catch (e) {}
+        resizer.classList.add('is-dragging');
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
+      });
+    })();
+
     view.cardBrowser = state;
   }
 
