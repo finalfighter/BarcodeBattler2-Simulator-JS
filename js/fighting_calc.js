@@ -73,15 +73,15 @@
 
   // 先攻を決定する
   FightingCalc.prototype.decideFirstPlayer = function () {
-    var first_speed1 = this.calcFirstSpeed(this.fighting_data[0], this.fighting_data[1]);
-    var first_speed2 = this.calcFirstSpeed(this.fighting_data[1], this.fighting_data[0]);
-    if (first_speed1 > first_speed2) {
-      this.now_player = 1;
-    } else if (first_speed1 < first_speed2) {
-      this.now_player = 2;
-    } else {
-      this.now_player = Math.floor(Math.random() * 2) + 1; // 同値時はコイントス(1 or 2)
-    }
+    var first_speed1, first_speed2;
+    // 実機仕様(speedtracelog.txt 89AD BEQ $8987 準拠):
+    // 同値の場合は決着がつくまで乱数を引き直して再計算ループ
+    do {
+      first_speed1 = this.calcFirstSpeed(this.fighting_data[0], this.fighting_data[1]);
+      first_speed2 = this.calcFirstSpeed(this.fighting_data[1], this.fighting_data[0]);
+    } while (first_speed1 === first_speed2);
+
+    this.now_player = (first_speed1 > first_speed2) ? 1 : 2;
   };
 
   // 先攻スピード値を計算する (実機BB2電卓マイコン直接数式)
@@ -91,9 +91,13 @@
     v = Math.floor((v * this.star_compatibility[fd1.race1][this.protection_star]) / 10);
     v = Math.floor((v * (this.race_compatibility[fd1.race1][fd2.race1] + 1)) / 10);
 
-    // 特殊能力37: 先制スピード+50
-    if (fd1.special1 === 37) {
+    // 特殊能力37: 先制スピード+50 (合体カード fd1.special2 も判定)
+    if (fd1.special1 === 37 || fd1.special2 === 37) {
       v = v + 50;
+    }
+    // 実機ROM仕様: 255クランプ (speedtracelog.txt $8DF8 LDA #$FF 準拠)
+    if (v > 255) {
+      v = 255;
     }
     return v;
   };
@@ -163,24 +167,32 @@
     }
 
     var speed_init = 0xCC; // 基本値: 204
+    // 実機ROM仕様(hit.txt $8E0E〜$8E35 準拠):
+    // 1. 攻撃側(自分)の能力をチェック
     if (fd1.special1 === 38 || fd1.special2 === 38) {
-      speed_init = 0xE6;
-    } else if (fd1.special1 === 39 || fd1.special2 === 39) {
-      speed_init = 0x80;
-    } else if (fd2.special1 === 40 || fd2.special2 === 40) {
-      speed_init = 0xE6;
+      speed_init = 0xE6; // 38: 自分の命中率アップ (230 ≒ 約90%)
+    } else if (fd1.special1 === 40 || fd1.special2 === 40) {
+      speed_init = 0x80; // 40: 自分の命中率ダウン (128 ≒ 約50%)
+    // 2. 攻撃側が能力を持たない場合のみ、防御側(相手)の能力をチェック
+    } else if (fd2.special1 === 39 || fd2.special2 === 39) {
+      speed_init = 0xE6; // 39: 相手の命中率アップ (230 ≒ 約90%)
     } else if (fd2.special1 === 41 || fd2.special2 === 41) {
-      speed_init = 0x80;
+      speed_init = 0x80; // 41: 相手の命中率ダウン (128 ≒ 約50%)
     }
 
     if (magicRate > 0) {
       speed_init = speed_init - magicRate;
     }
 
-    // 守護星相性適用
-    speed_init = Math.floor((speed_init * this.star_compatibility[fd1.race1][this.protection_star]) / 10) & 0xFF;
+    // 実機・さき氏検証仕様: 命中値 ＝ (命中初期値 ＋ 命中アップ値) × 種族相性 × 守護星相性
+    var hit_base = speed_init + speed_add;
 
-    var hit_value = speed_init + speed_add;
+    // 種族相性適用 (0.8 〜 1.2)
+    hit_base = Math.floor((hit_base * this.race_compatibility[fd1.race1][fd2.race1]) / 10);
+
+    // 守護星相性適用 (0.8 〜 1.2)
+    var hit_value = Math.floor((hit_base * this.star_compatibility[fd1.race1][this.protection_star]) / 10);
+
     if (hit_value > 255) {
       return true; // 必中
     }

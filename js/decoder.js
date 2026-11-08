@@ -122,36 +122,54 @@
         /* 魔法使い(職業7〜9)は武器・防具不可 */
         if (targetJob >= 7) { return false; }
 
-        /* 種別6(ST武器) / 種別8(DF防具)の装備制限 */
-        /* ※種別5(使い捨てST)・種別7(使い捨てDF)は実機挙動により戦士職0〜6なら誰でも使用可 */
-        if (d.race === 6 || d.race === 8) {
-          /* 種類1〜6: 職業と種類が一致時は使用不可 */
-          if (d.job >= 1 && d.job <= 6 && targetJob === d.job) {
-            return false;
-          }
-          /* 種類8: 職業0〜3なら使用可(4〜6は不可) */
-          if (d.job === 8 && targetJob > 3) {
-            return false;
-          }
-          /* 種類9: 職業3〜6なら使用可(0〜2は不可) */
-          if (d.job === 9 && targetJob < 3) {
-            return false;
-          }
+        /* 実機仕様・装備制限マトリクス(itemunion.txt $8F77〜$8FAF 準拠):
+         * 種類0: 職業0〜6 全員装備可
+         * 種類1〜6: 職業と種類が一致時のみ装備可 (職業1→種類1, 職業2→種類2, ..., 職業6→種類6)
+         * 種類7: 職業0〜3 が装備可
+         * 種類8: 職業3〜6 が装備可
+         * 種類9: 職業0 のみ装備可
+         */
+        if (d.job === 0) {
+          /* 種類0: 全戦士OK */
+        } else if (d.job >= 1 && d.job <= 6) {
+          if (targetJob !== d.job) { return false; }
+        } else if (d.job === 7) {
+          if (targetJob > 3) { return false; }
+        } else if (d.job === 8) {
+          if (targetJob < 3) { return false; }
+        } else if (d.job === 9) {
+          if (targetJob !== 0) { return false; }
         }
       }
 
       /* 種別9: HPアイテム / 情報カード / 薬草アップ / MPアップ */
       if (d.race === 9) {
-        /* 情報カード(種類5, 6)は入力不可(c1_flag のみ可) */
-        if (d.job === 5 || d.job === 6) {
+        /* HPアイテム(種類0〜4): 実機仕様・装備制限マトリクス準拠
+         * 種類0: 全員装備可 (職業0〜9)
+         * 種類1〜4: 職業9(魔法使い)は全種類装備可
+         * 職業0→種類1, 職業1→種類2, 職業2→種類3, 職業3→種類4 が装備可
+         * 職業4〜8は種類0のみ
+         */
+        if (d.job >= 0 && d.job <= 4) {
+          if (d.job === 0) {
+            /* 種類0: 全員OK */
+          } else if (targetJob === 9) {
+            /* 職業9: 全種類OK */
+          } else if (d.job === targetJob + 1 && targetJob <= 3) {
+            /* 職業0→種類1, 職業1→種類2, 職業2→種類3, 職業3→種類4 */
+          } else {
+            return false;
+          }
+        } else if (d.job === 5 || d.job === 6) {
+          /* 情報カード(種類5, 6)は入力不可(c1_flag のみ可) */
           if (!c1_flag) { return false; }
-        }
-        /* MPアップ(種類8): 職業が7か9なら使用可 */
-        if (d.job === 8) {
+        } else if (d.job === 7) {
+          /* 薬草アップ(種類7): 全員装備可 */
+        } else if (d.job === 8) {
+          /* MPアップ(種類8): 職業が7か9なら使用可 */
           if (targetJob !== 7 && targetJob !== 9) { return false; }
-        }
-        /* MPアップ(種類9): 職業が8か9なら使用可 */
-        if (d.job === 9) {
+        } else if (d.job === 9) {
+          /* MPアップ(種類9): 職業が8か9なら使用可 */
           if (targetJob !== 8 && targetJob !== 9) { return false; }
         }
       }
@@ -253,7 +271,7 @@
           var disp_st0 = d.st + 100; /* 初期表示用(ST+10000) */
           d.st += 200; /* 通常+100 + 特殊+100 */
           if (d.st >= 256) {
-            d.st -= 255; /* 実機仕様: 25500減算 (-255) */
+            d.st -= 256; /* 実機仕様(さき氏報告/8bitオーバーフロー): 25600減算 (-256) */
             disp_st0 = d.st; /* ラップ時は入力時点で減算後の値が表示される */
           }
           d.st_disp = disp_st0;
@@ -268,7 +286,7 @@
          * グループD: (14)+(16*0〜5) [14, 30, 46, 62, 78, 94]
          *   通常DF+10000に加え、ST+10000、さらに内部DF+10000(計DF+20000)。
          *   初期表示はDF+10000のまま(df_disp)、アイテム使用・合体で19900に変化。
-         *   内部DFが25600以上(256以上)の場合は実機仕様で-25500(-255)減算。
+         *   内部DFが25600以上(256以上)の場合は実機仕様(8bitオーバーフロー)で-25600(-256)減算。
          *   ラップ時は初期表示から減算後の値が表示される。
          */
         var isGroupD1 = (check_stdf === 14 || check_stdf === 30 || check_stdf === 46 ||
@@ -279,7 +297,7 @@
           var disp_df1 = d.df + 100; /* 初期表示用(DF+10000) */
           d.df += 200; /* 通常+100 + 特殊+100 */
           if (d.df >= 256) {
-            d.df -= 255; /* 実機仕様: 25500減算 (-255) */
+            d.df -= 256; /* 実機仕様(さき氏報告/8bitオーバーフロー): 25600減算 (-256) */
             disp_df1 = d.df; /* ラップ時は入力時点で減算後の値が表示される */
           }
           d.df_disp = disp_df1;
@@ -291,7 +309,8 @@
         d.st += 100; d.df += 100;
       }
 
-      d.speed = toInt(barcode.charAt(11));
+      // Speed: 実機仕様に基づき第10桁(⑩、index 9)を取得
+      d.speed = toInt(barcode.charAt(9));
       d.job = toInt(barcode.charAt(8));
       d.pp = 5;
       d.mp = (d.job >= 6) ? 10 : 0;
@@ -345,7 +364,8 @@
         if (tmpdf2 >= 10) { tmpdf2 -= 10; }
         d.df = toInt(tmpdf.toString() + tmpdf2.toString());
 
-        d.speed = toInt(barcode.charAt(10));
+        // Speed: 後読み13桁は第6桁(⑥、index 5)
+        d.speed = toInt(barcode.charAt(5));
         d.job = toInt(barcode.charAt(5));
         d.pp = 5;
         d.mp = (d.job >= 6) ? 10 : 0;
