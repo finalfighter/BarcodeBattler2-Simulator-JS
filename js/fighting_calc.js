@@ -45,6 +45,7 @@
 
     this.now_player = 0;     // 先攻(1か2)
     this.display_damage = 0; // 表示ダメージ
+    this.last_timing_shield = false; // 直近の防御側シールド成否 ($6507)
 
     // パワーのとき使う乱数テーブル (1, 2, 3, 5, 7)
     this.power_rand_table = [1, 2, 3, 5, 7];
@@ -201,6 +202,28 @@
     return hit_value >= rand;
   };
 
+  // タイミング打法 (2倍ダメージ) の抽選ルーチン
+  // 実機ROM仕様 (PRG12::$8E6C〜$8E96 / timing_logic.txt 準拠):
+  // 1. 防御側シールド判定 ($6507): 50% の確率でシールド成立
+  // 2. 2倍ダメージ判定 ($6508):
+  //    - 通常時 (シールド失敗時): 50% で 2倍
+  //    - シールド成立時: 25% で 2倍
+  // 全体実効クリティカル率: 50% * 50% + 50% * 25% = 37.5%
+  FightingCalc.prototype.calcTimingMultiplier = function (randOverride) {
+    if (Array.isArray(randOverride) && randOverride[1] !== undefined) {
+      // テスト・検証用オーバーライド (0: 1倍, 1: 2倍)
+      return randOverride[1] + 1;
+    }
+    // 第1段階: 防御側シールド成否抽選 (50%)
+    this.last_timing_shield = (Math.random() < 0.5);
+
+    // 第2段階: 2倍ダメージ抽選 (シールド成立時は25%、通常時は50%)
+    var threshold = this.last_timing_shield ? 0.25 : 0.50;
+    var is_double = (Math.random() < threshold);
+
+    return is_double ? 2 : 1;
+  };
+
   // 通常攻撃のダメージ算出
   FightingCalc.prototype.basicDamage = function (fd1, fd2, randOverride) {
     // 0-4 の乱数×2 (0, 2, 4, 6, 8 実機偶数乱数)
@@ -209,7 +232,7 @@
 
     // DF判定: DF以下は最低1
     if (st_base <= fd2.df) {
-      var timing = (Array.isArray(randOverride)) ? randOverride[1] + 1 : Math.floor(Math.random() * 2) + 1;
+      var timing = this.calcTimingMultiplier(randOverride);
       return 1 * timing;
     }
 
@@ -239,7 +262,7 @@
     v = Math.floor((v * this.star_compatibility[fd1.race1][this.protection_star]) / 10);
     basic_damage = v;
 
-    var timing = (Array.isArray(randOverride)) ? randOverride[1] + 1 : Math.floor(Math.random() * 2) + 1;
+    var timing = this.calcTimingMultiplier(randOverride);
     return basic_damage * timing;
   };
 
